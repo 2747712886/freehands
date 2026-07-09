@@ -4,25 +4,40 @@ import com.google.common.collect.Multimap;
 import com.yourname.freehands.FreeHands;
 import com.yourname.freehands.ability.FreeHandAbility;
 import com.yourname.freehands.item.AbilityTrinketItem;
+import net.minecraft.core.registries.Registries;
+import net.minecraft.resources.ResourceLocation;
 import net.minecraft.tags.BlockTags;
+import net.minecraft.tags.DamageTypeTags;
+import net.minecraft.tags.TagKey;
+import net.minecraft.world.damagesource.CombatRules;
 import net.minecraft.world.entity.Entity;
 import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
+import net.minecraft.world.item.Item;
 import net.minecraft.world.item.ItemStack;
+import net.minecraft.world.item.enchantment.EnchantmentHelper;
+import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.TickEvent;
+import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
+import net.minecraftforge.event.entity.living.LootingLevelEvent;
+import net.minecraftforge.event.level.BlockEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
+import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import top.theillusivec4.curios.api.CuriosApi;
 import top.theillusivec4.curios.api.SlotResult;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
 import java.util.UUID;
 
@@ -30,6 +45,8 @@ import java.util.UUID;
 public final class FreeHandEvents {
     private static final UUID FREE_HAND_ARMOR_UUID = UUID.fromString("e005fb78-f2f6-48f1-908f-8cb8b18d4996");
     private static final UUID FREE_HAND_TOUGHNESS_UUID = UUID.fromString("f076c0b5-c03e-44ad-9205-92f3316e7852");
+    private static final TagKey<Item> NO_DURABILITY_COST = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(FreeHands.MODID, "no_durability_cost"));
+    private static final Map<UUID, MiningProxy> MINING_PROXIES = new HashMap<>();
 
     private FreeHandEvents() {
     }
@@ -43,10 +60,28 @@ public final class FreeHandEvents {
 
     @SubscribeEvent
     public static void onBreakSpeed(PlayerEvent.BreakSpeed event) {
-        float bestSpeed = bestMiningSpeed(event.getEntity(), event.getState());
-        if (bestSpeed > event.getNewSpeed()) {
-            event.setNewSpeed(bestSpeed);
+        Optional<FreeHandStack> bestStack = bestMiningStack(event.getEntity(), event.getState());
+        if (bestStack.isPresent() && shouldUseFreeHandForMining(event.getEntity().getMainHandItem(), bestStack.get().stack(), event.getState())) {
+            float bestSpeed = miningSpeed(bestStack.get().stack(), event.getState());
+            if (bestSpeed > event.getNewSpeed()) {
+                event.setNewSpeed(bestSpeed);
+            }
         }
+    }
+
+    @SubscribeEvent(priority = EventPriority.LOWEST)
+    public static void onBlockBreak(BlockEvent.BreakEvent event) {
+        if (event.isCanceled() || event.getPlayer().level().isClientSide()) {
+            return;
+        }
+
+        Player player = event.getPlayer();
+        Optional<FreeHandStack> bestStack = bestMiningStack(player, event.getState());
+        if (bestStack.isEmpty() || !shouldUseFreeHandForMining(player.getMainHandItem(), bestStack.get().stack(), event.getState())) {
+            return;
+        }
+
+        startMiningProxy(player, bestStack.get().stack());
     }
 
     @SubscribeEvent
@@ -56,11 +91,55 @@ public final class FreeHandEvents {
             return;
         }
 
-        double freeHandDamage = bestFreeHandAttackDamage(player);
-        double heldDamage = attackDamage(player.getMainHandItem());
-        double bonus = Math.max(0.0D, freeHandDamage - heldDamage);
-        if (bonus > 0.0D) {
-            event.setAmount((float) (event.getAmount() + bonus));
+        Optional<FreeHandStack> attackerStack = bestAttackStack(player, event.getEntity());
+        if (attackerStack.isPresent()) {
+            event.setAmount((float) (event.getAmount() + attackDamage(attackerStack.get().stack(), event.getEntity())));
+            damageFreeHandItem(attackerStack.get().stack(), player, 1);
+            applyWeaponSideEffects(attackerStack.get().stack(), event.getEntity());
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLivingDamage(LivingDamageEvent event) {
+        if (!(event.getEntity() instanceof Player player) || event.getAmount() <= 0.0F) {
+            return;
+        }
+
+        List<ItemStack> armorStacks = freeHandStacks(player).stream()
+                .filter(stack -> stack.getItem() instanceof ArmorItem)
+                .toList();
+        if (armorStacks.isEmpty()) {
+            return;
+        }
+
+        if (!event.getSource().is(DamageTypeTags.BYPASSES_ENCHANTMENTS)) {
+            int protection = EnchantmentHelper.getDamageProtection(armorStacks, event.getSource());
+            if (protection > 0) {
+                event.setAmount(CombatRules.getDamageAfterMagicAbsorb(event.getAmount(), protection));
+            }
+        }
+
+        if (!event.getSource().is(DamageTypeTags.BYPASSES_ARMOR)) {
+            int durabilityDamage = Math.max(1, (int) (event.getAmount() / 4.0F));
+            for (ItemStack armorStack : armorStacks) {
+                damageFreeHandItem(armorStack, player, durabilityDamage);
+            }
+        }
+    }
+
+    @SubscribeEvent
+    public static void onLootingLevel(LootingLevelEvent event) {
+        Entity attacker = event.getDamageSource().getEntity();
+        if (!(attacker instanceof Player player)) {
+            return;
+        }
+
+        int looting = freeHandStacks(player).stream()
+                .mapToInt(stack -> EnchantmentHelper.getItemEnchantmentLevel(Enchantments.MOB_LOOTING, stack))
+                .max()
+                .orElse(0);
+        if (looting > event.getLootingLevel()) {
+            event.setLootingLevel(looting);
         }
     }
 
@@ -74,20 +153,29 @@ public final class FreeHandEvents {
         double toughness = totalFreeHandArmorToughness(event.player);
         updateTransientModifier(event.player.getAttribute(Attributes.ARMOR), FREE_HAND_ARMOR_UUID, "Free hand armor", armor);
         updateTransientModifier(event.player.getAttribute(Attributes.ARMOR_TOUGHNESS), FREE_HAND_TOUGHNESS_UUID, "Free hand armor toughness", toughness);
+        MiningProxy proxy = MINING_PROXIES.get(event.player.getUUID());
+        if (proxy != null && event.player.tickCount > proxy.startTick()) {
+            finishMiningProxy(event.player);
+        }
     }
 
     private static boolean canAnyFreeHandHarvest(Player player, BlockState state) {
         return freeHandStacks(player).stream().anyMatch(stack -> canStackHarvest(stack, state));
     }
 
-    private static float bestMiningSpeed(Player player, BlockState state) {
-        float best = 0.0F;
+    private static Optional<FreeHandStack> bestMiningStack(Player player, BlockState state) {
+        FreeHandStack bestStack = null;
+        float bestSpeed = 0.0F;
         for (ItemStack stack : freeHandStacks(player)) {
             if (canStackHarvest(stack, state)) {
-                best = Math.max(best, miningSpeed(stack, state));
+                float speed = miningSpeed(stack, state);
+                if (speed > bestSpeed) {
+                    bestSpeed = speed;
+                    bestStack = new FreeHandStack(stack);
+                }
             }
         }
-        return best;
+        return Optional.ofNullable(bestStack);
     }
 
     private static boolean canStackHarvest(ItemStack stack, BlockState state) {
@@ -103,18 +191,31 @@ public final class FreeHandEvents {
         if (ability.isPresent()) {
             return ability.get().miningSpeed();
         }
-        return stack.getDestroySpeed(state);
-    }
 
-    private static double bestFreeHandAttackDamage(Player player) {
-        double best = 0.0D;
-        for (ItemStack stack : freeHandStacks(player)) {
-            best = Math.max(best, attackDamage(stack));
+        float speed = stack.getDestroySpeed(state);
+        if (speed > 1.0F) {
+            int efficiency = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_EFFICIENCY, stack);
+            if (efficiency > 0) {
+                speed += efficiency * efficiency + 1;
+            }
         }
-        return best;
+        return speed;
     }
 
-    private static double attackDamage(ItemStack stack) {
+    private static Optional<FreeHandStack> bestAttackStack(Player player, LivingEntity target) {
+        FreeHandStack bestStack = null;
+        double bestDamage = 0.0D;
+        for (ItemStack stack : freeHandStacks(player)) {
+            double damage = attackDamage(stack, target);
+            if (damage > bestDamage) {
+                bestDamage = damage;
+                bestStack = new FreeHandStack(stack);
+            }
+        }
+        return Optional.ofNullable(bestStack);
+    }
+
+    private static double attackDamage(ItemStack stack, LivingEntity target) {
         Optional<FreeHandAbility> ability = trinketAbility(stack);
         if (ability.isPresent()) {
             return ability.get().attackDamage();
@@ -125,7 +226,7 @@ public final class FreeHandEvents {
         for (AttributeModifier modifier : modifiers.get(Attributes.ATTACK_DAMAGE)) {
             damage += modifier.getAmount();
         }
-        return damage;
+        return damage + EnchantmentHelper.getDamageBonus(stack, target.getMobType());
     }
 
     private static double totalFreeHandArmor(Player player) {
@@ -197,5 +298,80 @@ public final class FreeHandEvents {
             return ability.harvestLevel() >= 1;
         }
         return ability.harvestLevel() >= 0;
+    }
+
+    private static boolean shouldUseFreeHandForMining(ItemStack heldStack, ItemStack freeHandStack, BlockState state) {
+        if (!canStackHarvest(freeHandStack, state)) {
+            return false;
+        }
+        if (!canStackHarvest(heldStack, state)) {
+            return true;
+        }
+        return miningSpeed(freeHandStack, state) > miningSpeed(heldStack, state);
+    }
+
+    private static void startMiningProxy(Player player, ItemStack freeHandStack) {
+        UUID playerId = player.getUUID();
+        if (MINING_PROXIES.containsKey(playerId)) {
+            return;
+        }
+
+        ItemStack originalMainHand = player.getMainHandItem().copy();
+        ItemStack proxyStack = freeHandStack.copy();
+        int originalFreeHandDamage = freeHandStack.getDamageValue();
+        boolean skipDurability = shouldSkipDurability(freeHandStack);
+        MINING_PROXIES.put(playerId, new MiningProxy(originalMainHand, proxyStack, freeHandStack, originalFreeHandDamage, skipDurability, player.tickCount));
+
+        player.setItemSlot(EquipmentSlot.MAINHAND, proxyStack);
+    }
+
+    private static void finishMiningProxy(Player player) {
+        MiningProxy proxy = MINING_PROXIES.remove(player.getUUID());
+        if (proxy == null) {
+            return;
+        }
+
+        if (!proxy.skipDurability()) {
+            if (proxy.proxyStack().isEmpty()) {
+                proxy.freeHandStack().shrink(1);
+            } else if (proxy.freeHandStack().isDamageableItem()) {
+                proxy.freeHandStack().setDamageValue(proxy.proxyStack().getDamageValue());
+            }
+        } else if (proxy.freeHandStack().isDamageableItem()) {
+            proxy.freeHandStack().setDamageValue(proxy.originalFreeHandDamage());
+        }
+
+        player.setItemSlot(EquipmentSlot.MAINHAND, proxy.originalMainHand());
+    }
+
+    private static void damageFreeHandItem(ItemStack stack, Player player, int amount) {
+        if (amount <= 0 || shouldSkipDurability(stack) || !stack.isDamageableItem()) {
+            return;
+        }
+        stack.hurtAndBreak(amount, player, owner -> owner.broadcastBreakEvent(EquipmentSlot.MAINHAND));
+    }
+
+    private static boolean shouldSkipDurability(ItemStack stack) {
+        return stack.is(NO_DURABILITY_COST);
+    }
+
+    private static void applyWeaponSideEffects(ItemStack stack, LivingEntity target) {
+        int fireAspect = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FIRE_ASPECT, stack);
+        if (fireAspect > 0) {
+            target.setSecondsOnFire(fireAspect * 4);
+        }
+    }
+
+    private record FreeHandStack(ItemStack stack) {
+    }
+
+    private record MiningProxy(
+            ItemStack originalMainHand,
+            ItemStack proxyStack,
+            ItemStack freeHandStack,
+            int originalFreeHandDamage,
+            boolean skipDurability,
+            int startTick
+    ) {
     }
 }
