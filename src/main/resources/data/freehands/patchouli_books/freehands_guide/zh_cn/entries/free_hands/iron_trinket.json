@@ -1,0 +1,16 @@
+{
+  "name": "铁饰品",
+  "icon": "freehands:iron_trinket",
+  "category": "freehands:free_hands",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "铁饰品是早期通用饰品。装备在解放槽后，提供铁级挖掘、铁剑等级攻击，以及基础护甲能力。"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "freehands:iron_trinket",
+      "text": "使用铁锭和线合成。"
+    }
+  ]
+}

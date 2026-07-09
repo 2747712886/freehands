@@ -1,7 +1,0 @@
-{
-  "name": "Core Trinkets",
-  "landing_text": "Core Trinkets records core slot progression, starting with the Iron Core.",
-  "version": 1,
-  "creative_tab": "coretrinkets:core_trinkets",
-  "use_resource_pack": true
-}

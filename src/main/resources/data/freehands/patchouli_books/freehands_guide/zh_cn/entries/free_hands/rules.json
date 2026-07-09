@@ -1,0 +1,15 @@
+{
+  "name": "槽位规则",
+  "icon": "minecraft:iron_pickaxe",
+  "category": "freehands:free_hands",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "解放槽有两个位置。原版工具、武器、护甲，以及本模组饰品都可以装备到这里。"
+    },
+    {
+      "type": "patchouli:text",
+      "text": "挖掘会使用槽内最适合当前方块的工具能力；攻击使用最高的武器或工具伤害；护甲值会从槽内护甲累加。"
+    }
+  ]
+}
