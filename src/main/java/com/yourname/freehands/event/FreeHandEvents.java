@@ -33,8 +33,9 @@ import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import top.theillusivec4.curios.api.CuriosApi;
-import top.theillusivec4.curios.api.SlotResult;
+import top.theillusivec4.curios.api.type.inventory.IDynamicStackHandler;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -269,12 +270,21 @@ public final class FreeHandEvents {
     }
 
     private static List<ItemStack> freeHandStacks(Player player) {
-        return CuriosApi.getCuriosHelper()
-                .findCurios(player, FreeHands.FREE_HAND_SLOT)
-                .stream()
-                .map(SlotResult::stack)
-                .filter(stack -> !stack.isEmpty())
-                .toList();
+        return CuriosApi.getCuriosInventory(player)
+                .resolve()
+                .flatMap(handler -> handler.getStacksHandler(FreeHands.FREE_HAND_SLOT))
+                .map(handler -> {
+                    IDynamicStackHandler stacks = handler.getStacks();
+                    List<ItemStack> result = new ArrayList<>();
+                    for (int slot = 0; slot < stacks.getSlots(); slot++) {
+                        ItemStack stack = stacks.getStackInSlot(slot);
+                        if (!stack.isEmpty()) {
+                            result.add(stack);
+                        }
+                    }
+                    return result;
+                })
+                .orElseGet(List::of);
     }
 
     private static Optional<FreeHandAbility> trinketAbility(ItemStack stack) {

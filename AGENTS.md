@@ -33,6 +33,7 @@
 
 - 挖掘优先级：只在解放槽工具优于主手工具时代理挖掘；主手工具足够好时不抢主手逻辑。
 - 挖掘代理：`FreeHandEvents` 会在方块破坏事件中临时把最佳解放槽工具放到主手，让原版 `mineBlock`、掉落、效率、时运、精准采集和耐久逻辑尽量自然生效，再把主手还原。
+- Curios 读取：不要使用已弃用的 `findCurios(LivingEntity, String...)`；读取 `free_hand` 槽时使用 `CuriosApi.getCuriosInventory(player)`、`getStacksHandler(FreeHands.FREE_HAND_SLOT)` 和 `IDynamicStackHandler`。
 - 攻击逻辑：解放槽最高攻击值作为额外伤害叠加，不替换主手伤害；实际参与叠加的槽内武器或工具需要扣耐久。
 - 攻击附魔：当前代码显式补充锋利类伤害、火焰附加和抢夺等级；其他特殊攻击附魔不要默认认为已完整兼容。
 - 防御逻辑：解放槽护甲属性通过 transient attribute modifier 提供；保护类附魔和护甲耐久在受伤事件中补充处理。
