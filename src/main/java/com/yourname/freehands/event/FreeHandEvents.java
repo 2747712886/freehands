@@ -27,9 +27,8 @@ import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
 import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LootingLevelEvent;
-import net.minecraftforge.event.level.BlockEvent;
+import net.minecraftforge.event.entity.player.CriticalHitEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
-import net.minecraftforge.eventbus.api.EventPriority;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import top.theillusivec4.curios.api.CuriosApi;
@@ -47,42 +46,41 @@ public final class FreeHandEvents {
     private static final UUID FREE_HAND_ARMOR_UUID = UUID.fromString("e005fb78-f2f6-48f1-908f-8cb8b18d4996");
     private static final UUID FREE_HAND_TOUGHNESS_UUID = UUID.fromString("f076c0b5-c03e-44ad-9205-92f3316e7852");
     private static final TagKey<Item> NO_DURABILITY_COST = TagKey.create(Registries.ITEM, ResourceLocation.fromNamespaceAndPath(FreeHands.MODID, "no_durability_cost"));
-    private static final Map<UUID, MiningProxy> MINING_PROXIES = new HashMap<>();
+    private static final Map<CombatHit, Float> CRITICAL_HIT_MULTIPLIERS = new HashMap<>();
 
     private FreeHandEvents() {
     }
 
     @SubscribeEvent
     public static void onHarvestCheck(PlayerEvent.HarvestCheck event) {
-        if (canAnyFreeHandHarvest(event.getEntity(), event.getTargetBlock())) {
+        if (selectedMiningStack(event.getEntity(), event.getTargetBlock()).isPresent()) {
             event.setCanHarvest(true);
         }
     }
 
     @SubscribeEvent
     public static void onBreakSpeed(PlayerEvent.BreakSpeed event) {
-        Optional<FreeHandStack> bestStack = bestMiningStack(event.getEntity(), event.getState());
-        if (bestStack.isPresent() && shouldUseFreeHandForMining(event.getEntity().getMainHandItem(), bestStack.get().stack(), event.getState())) {
-            float bestSpeed = miningSpeed(bestStack.get().stack(), event.getState());
+        selectedMiningStack(event.getEntity(), event.getState()).ifPresent(stack -> {
+            float bestSpeed = miningSpeed(stack, event.getState());
             if (bestSpeed > event.getNewSpeed()) {
                 event.setNewSpeed(bestSpeed);
             }
-        }
+        });
     }
 
-    @SubscribeEvent(priority = EventPriority.LOWEST)
-    public static void onBlockBreak(BlockEvent.BreakEvent event) {
-        if (event.isCanceled() || event.getPlayer().level().isClientSide()) {
+    @SubscribeEvent
+    public static void onCriticalHit(CriticalHitEvent event) {
+        if (!(event.getTarget() instanceof LivingEntity target)) {
             return;
         }
 
-        Player player = event.getPlayer();
-        Optional<FreeHandStack> bestStack = bestMiningStack(player, event.getState());
-        if (bestStack.isEmpty() || !shouldUseFreeHandForMining(player.getMainHandItem(), bestStack.get().stack(), event.getState())) {
-            return;
+        CombatHit hit = new CombatHit(event.getEntity().getUUID(), target.getUUID());
+        if (event.getResult() == net.minecraftforge.eventbus.api.Event.Result.ALLOW
+                || (event.isVanillaCritical() && event.getResult() != net.minecraftforge.eventbus.api.Event.Result.DENY)) {
+            CRITICAL_HIT_MULTIPLIERS.put(hit, event.getDamageModifier());
+        } else {
+            CRITICAL_HIT_MULTIPLIERS.remove(hit);
         }
-
-        startMiningProxy(player, bestStack.get().stack());
     }
 
     @SubscribeEvent
@@ -94,7 +92,9 @@ public final class FreeHandEvents {
 
         Optional<FreeHandStack> attackerStack = bestAttackStack(player, event.getEntity());
         if (attackerStack.isPresent()) {
-            event.setAmount((float) (event.getAmount() + attackDamage(attackerStack.get().stack(), event.getEntity())));
+            float criticalMultiplier = CRITICAL_HIT_MULTIPLIERS.getOrDefault(new CombatHit(player.getUUID(), event.getEntity().getUUID()), 1.0F);
+            CRITICAL_HIT_MULTIPLIERS.remove(new CombatHit(player.getUUID(), event.getEntity().getUUID()));
+            event.setAmount((float) (event.getAmount() + attackDamage(attackerStack.get().stack(), event.getEntity()) * criticalMultiplier));
             damageFreeHandItem(attackerStack.get().stack(), player, 1);
             applyWeaponSideEffects(attackerStack.get().stack(), event.getEntity());
         }
@@ -130,18 +130,21 @@ public final class FreeHandEvents {
 
     @SubscribeEvent
     public static void onLootingLevel(LootingLevelEvent event) {
+        if (event.getDamageSource() == null) {
+            return;
+        }
+
         Entity attacker = event.getDamageSource().getEntity();
         if (!(attacker instanceof Player player)) {
             return;
         }
 
-        int looting = freeHandStacks(player).stream()
-                .mapToInt(stack -> EnchantmentHelper.getItemEnchantmentLevel(Enchantments.MOB_LOOTING, stack))
-                .max()
-                .orElse(0);
-        if (looting > event.getLootingLevel()) {
-            event.setLootingLevel(looting);
-        }
+        bestAttackStack(player, event.getEntity()).ifPresent(attackerStack -> {
+            int looting = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.MOB_LOOTING, attackerStack.stack());
+            if (looting > event.getLootingLevel()) {
+                event.setLootingLevel(looting);
+            }
+        });
     }
 
     @SubscribeEvent
@@ -154,14 +157,15 @@ public final class FreeHandEvents {
         double toughness = totalFreeHandArmorToughness(event.player);
         updateTransientModifier(event.player.getAttribute(Attributes.ARMOR), FREE_HAND_ARMOR_UUID, "Free hand armor", armor);
         updateTransientModifier(event.player.getAttribute(Attributes.ARMOR_TOUGHNESS), FREE_HAND_TOUGHNESS_UUID, "Free hand armor toughness", toughness);
-        MiningProxy proxy = MINING_PROXIES.get(event.player.getUUID());
-        if (proxy != null && event.player.tickCount > proxy.startTick()) {
-            finishMiningProxy(event.player);
-        }
+        CRITICAL_HIT_MULTIPLIERS.keySet().removeIf(hit -> hit.playerId().equals(event.player.getUUID()));
     }
 
-    private static boolean canAnyFreeHandHarvest(Player player, BlockState state) {
-        return freeHandStacks(player).stream().anyMatch(stack -> canStackHarvest(stack, state));
+    public static Optional<ItemStack> selectedMiningStack(Player player, BlockState state) {
+        Optional<FreeHandStack> bestStack = bestMiningStack(player, state);
+        if (bestStack.isEmpty() || !shouldUseFreeHandForMining(player.getMainHandItem(), bestStack.get().stack(), state)) {
+            return Optional.empty();
+        }
+        return Optional.of(bestStack.get().stack());
     }
 
     private static Optional<FreeHandStack> bestMiningStack(Player player, BlockState state) {
@@ -314,44 +318,11 @@ public final class FreeHandEvents {
         if (!canStackHarvest(freeHandStack, state)) {
             return false;
         }
-        if (!canStackHarvest(heldStack, state)) {
-            return true;
-        }
-        return miningSpeed(freeHandStack, state) > miningSpeed(heldStack, state);
+        return !hasMiningSpeedBonus(heldStack, state);
     }
 
-    private static void startMiningProxy(Player player, ItemStack freeHandStack) {
-        UUID playerId = player.getUUID();
-        if (MINING_PROXIES.containsKey(playerId)) {
-            return;
-        }
-
-        ItemStack originalMainHand = player.getMainHandItem().copy();
-        ItemStack proxyStack = freeHandStack.copy();
-        int originalFreeHandDamage = freeHandStack.getDamageValue();
-        boolean skipDurability = shouldSkipDurability(freeHandStack);
-        MINING_PROXIES.put(playerId, new MiningProxy(originalMainHand, proxyStack, freeHandStack, originalFreeHandDamage, skipDurability, player.tickCount));
-
-        player.setItemSlot(EquipmentSlot.MAINHAND, proxyStack);
-    }
-
-    private static void finishMiningProxy(Player player) {
-        MiningProxy proxy = MINING_PROXIES.remove(player.getUUID());
-        if (proxy == null) {
-            return;
-        }
-
-        if (!proxy.skipDurability()) {
-            if (proxy.proxyStack().isEmpty()) {
-                proxy.freeHandStack().shrink(1);
-            } else if (proxy.freeHandStack().isDamageableItem()) {
-                proxy.freeHandStack().setDamageValue(proxy.proxyStack().getDamageValue());
-            }
-        } else if (proxy.freeHandStack().isDamageableItem()) {
-            proxy.freeHandStack().setDamageValue(proxy.originalFreeHandDamage());
-        }
-
-        player.setItemSlot(EquipmentSlot.MAINHAND, proxy.originalMainHand());
+    private static boolean hasMiningSpeedBonus(ItemStack stack, BlockState state) {
+        return miningSpeed(stack, state) > 1.0F;
     }
 
     private static void damageFreeHandItem(ItemStack stack, Player player, int amount) {
@@ -375,13 +346,9 @@ public final class FreeHandEvents {
     private record FreeHandStack(ItemStack stack) {
     }
 
-    private record MiningProxy(
-            ItemStack originalMainHand,
-            ItemStack proxyStack,
-            ItemStack freeHandStack,
-            int originalFreeHandDamage,
-            boolean skipDurability,
-            int startTick
+    private record CombatHit(
+            UUID playerId,
+            UUID targetId
     ) {
     }
 }

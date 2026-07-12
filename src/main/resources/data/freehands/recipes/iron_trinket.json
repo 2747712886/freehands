@@ -1,16 +1,37 @@
 {
   "type": "minecraft:crafting_shaped",
   "pattern": [
-    "III",
-    "ISI",
-    "III"
+    "HWC",
+    "AIP",
+    "BSL"
   ],
   "key": {
+    "H": {
+      "item": "minecraft:iron_helmet"
+    },
+    "W": {
+      "item": "minecraft:iron_sword"
+    },
+    "C": {
+      "item": "minecraft:iron_chestplate"
+    },
+    "A": {
+      "item": "minecraft:iron_axe"
+    },
     "I": {
-      "item": "minecraft:iron_ingot"
+      "item": "minecraft:iron_block"
+    },
+    "P": {
+      "item": "minecraft:iron_pickaxe"
+    },
+    "B": {
+      "item": "minecraft:iron_boots"
     },
     "S": {
-      "item": "minecraft:string"
+      "item": "minecraft:iron_shovel"
+    },
+    "L": {
+      "item": "minecraft:iron_leggings"
     }
   },
   "result": {

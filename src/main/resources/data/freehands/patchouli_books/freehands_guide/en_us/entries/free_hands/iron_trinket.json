@@ -5,12 +5,12 @@
   "pages": [
     {
       "type": "patchouli:text",
-      "text": "The Iron Trinket is an early custom trinket. It provides iron-level mining, iron sword level attack damage, and basic armor while equipped in a Free Hand slot."
+      "text": "The Iron Trinket combines iron-level mining, iron sword level attack damage, and basic armor while equipped in a Free Hand slot. Its 2048 durability is shared by the abilities it provides."
     },
     {
       "type": "patchouli:crafting",
       "recipe": "freehands:iron_trinket",
-      "text": "Craft it from iron ingots and string."
+      "text": "Craft it by alternating the four iron armor pieces and iron sword, axe, shovel, and pickaxe around an iron block."
     }
   ]
 }
