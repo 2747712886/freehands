@@ -123,6 +123,7 @@ $env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 - 如果需要清理多个文件，必须逐个文件单独执行。
 - 复杂任务使用 todo list。
 - Markdown 文件必须保持 UTF-8，避免中文乱码。
+- Git 提交信息、推送说明和相关沟通必须使用中文。
 - 不要把其他模组项目直接混进当前项目；多个模组应放在 `E:\mod` 下的独立子目录。
 - 不要删除 `E:\mod` 根目录文件，除非用户明确要求。
 - 不要重新引入旧 `coretrinkets` 命名。
