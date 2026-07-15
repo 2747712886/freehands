@@ -225,9 +225,9 @@ public final class IronTrinketGameTests {
 
         helper.runAfterDelay(2, () -> {
             useEmptyMainHandOn(player, helper, pathPos);
-            helper.assertBlockPresent(Blocks.FARMLAND, pathPos);
-            helper.assertTrue(trinket.getDamageValue() == 1,
-                    "Tilling a dirt path with an Iron Trinket should consume one durability");
+            helper.assertBlockPresent(Blocks.DIRT_PATH, pathPos);
+            helper.assertTrue(trinket.getDamageValue() == 0,
+                    "An Iron Trinket must not till a dirt path; its recipe does not include a hoe");
             helper.succeed();
         });
     }
@@ -689,12 +689,12 @@ public final class IronTrinketGameTests {
                     "An Iron Trinket must have a positive enchantability value");
 
             EnchantmentHelper.setEnchantments(Map.of(Enchantments.BLOCK_EFFICIENCY, 1), trinket);
-            int level = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_EFFICIENCY, trinket);
+            int level = trinket.getEnchantmentLevel(Enchantments.BLOCK_EFFICIENCY);
             helper.assertTrue(level == 1,
                     "An Iron Trinket should accept Efficiency I; actual level: " + level);
 
             EnchantmentHelper.setEnchantments(Map.of(Enchantments.ALL_DAMAGE_PROTECTION, 1), trinket);
-            int protLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.ALL_DAMAGE_PROTECTION, trinket);
+            int protLevel = trinket.getEnchantmentLevel(Enchantments.ALL_DAMAGE_PROTECTION);
             helper.assertTrue(protLevel == 1,
                     "An Iron Trinket should accept Protection I; actual level: " + protLevel);
 

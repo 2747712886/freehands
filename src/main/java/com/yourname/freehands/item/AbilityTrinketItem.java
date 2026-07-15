@@ -108,10 +108,6 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
             return flattenResult;
         }
 
-        InteractionResult tillResult = modifyBlock(context, state, ToolActions.HOE_TILL, SoundEvents.HOE_TILL, 0, true);
-        if (tillResult != InteractionResult.PASS) {
-            return tillResult;
-        }
 
         if (state.getBlock() instanceof CampfireBlock && state.getValue(CampfireBlock.LIT)) {
             if (!level.isClientSide()) {
@@ -161,7 +157,6 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
         return ToolActions.DEFAULT_PICKAXE_ACTIONS.contains(toolAction)
                 || ToolActions.DEFAULT_SHOVEL_ACTIONS.contains(toolAction)
                 || ToolActions.DEFAULT_AXE_ACTIONS.contains(toolAction)
-                || ToolActions.DEFAULT_HOE_ACTIONS.contains(toolAction)
                 || toolAction == ToolActions.SHEARS_CARVE;
     }
 

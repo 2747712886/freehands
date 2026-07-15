@@ -142,7 +142,7 @@ public final class FreeHandEvents {
         }
 
         bestAttackStack(player, event.getEntity()).ifPresent(attackerStack -> {
-            int looting = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.MOB_LOOTING, attackerStack.stack());
+            int looting = attackerStack.stack().getEnchantmentLevel(Enchantments.MOB_LOOTING);
             if (looting > event.getLootingLevel()) {
                 event.setLootingLevel(looting);
             }
@@ -215,7 +215,7 @@ public final class FreeHandEvents {
 
         float speed = stack.getDestroySpeed(state);
         if (speed > 1.0F) {
-            int efficiency = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_EFFICIENCY, stack);
+            int efficiency = stack.getEnchantmentLevel(Enchantments.BLOCK_EFFICIENCY);
             if (efficiency > 0) {
                 speed += efficiency * efficiency + 1;
             }
@@ -360,7 +360,7 @@ public final class FreeHandEvents {
     }
 
     private static void applyWeaponSideEffects(ItemStack stack, LivingEntity target) {
-        int fireAspect = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.FIRE_ASPECT, stack);
+        int fireAspect = stack.getEnchantmentLevel(Enchantments.FIRE_ASPECT);
         if (fireAspect > 0) {
             target.setSecondsOnFire(fireAspect * 4);
         }
