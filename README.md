@@ -1,124 +1,93 @@
-# 解放双手 / Free Hands
+# Free Hands · 解放双手
 
-`解放双手` 是一个 Minecraft Forge `1.20.1` 模组，基于 Forge `47.4.10` 开发。
+一个 Minecraft Forge `1.20.1` 模组，通过 Curios 增加两个解放槽，在不占用主副手的情况下使用工具、武器、护甲和饰品。
+A Minecraft Forge 1.20.1 mod — two Curios slots for tools, weapons, armor, and trinkets, hands-free.
 
-模组通过 Curios 增加两个“解放槽”，允许玩家把原版工具、武器、护甲和本模组饰品装备到槽位中，并在不占用主副手的情况下获得对应功能。
+Forge `47.4.10` · Curios `5.14.1`
 
-## 当前目标
+## 解放槽
 
-- 模组 ID：`freehands`
-- 主包名：`com.yourname.freehands`
-- 当前开发目录：`E:\mod\freehands`
-- 项目目录：`E:\mod\freehands`
-- GitHub 仓库：`2747712886/freehands`
+两个 `free_hand` Curios 槽位。可放入原版工具、武器、护甲、剪刀及本模组饰品。
+Two `free_hand` Curios slots for vanilla tools, weapons, armor, shears, and trinkets.
 
-## 已实现内容
+## 饰品
 
-- 新增 Curios 槽位类型 `free_hand`，大小为 `2`。
-- 中文显示名为“解放槽”。
-- `free_hand` 槽允许装备原版工具、武器、护甲，以及铁、钻石、下界合金饰品。
-- 新增 `freehands:iron_trinket`、`freehands:diamond_trinket` 和 `freehands:netherite_trinket`，分别提供对应等级的挖掘、攻击和防御能力。
-- 物品使用原版 `Unbreakable` 标记时，解放槽中的挖掘、攻击、防御和受支持的右键操作均不会消耗耐久。
-- 原 `iron_core` 已重构为 `iron_trinket` / “铁饰品”。
-- Patchouli 手册改为可选内容，未安装 Patchouli 不应阻止模组启动。
+| | 耐久 | 挖掘 | 攻击 | 护甲 | 韧性 | 击退 | 附魔值 |
+|---|---|---|---|---|---|---|---|
+| 铁 Iron | 2048 | 铁级 | 铁剑 | 全套铁 | — | — | 14 |
+| 钻石 Diamond | 4096 | 钻石级 | 钻石剑 | 全套钻石 | 全套钻石 | — | 10 |
+| 下界合金 Netherite | 8192 | 下界合金级 | 下界合金剑 | 全套下界合金 | 全套下界合金 | 全套 | 15 |
 
-## 能力规则
+饰品可在附魔台使用所有工具和护甲附魔。
+Trinkets accept all tool and armor enchantments at the enchanting table.
 
-- 挖掘：从两个解放槽中选择最适合当前方块的工具或饰品；当主手没有对应方块的速度加成时，解放槽工具作为虚拟主手参与原版破坏流程，真实主手物品栏不变。
-- 挖掘耐久：实际参与挖掘的解放槽工具按原版流程消耗耐久；主手有速度加成时保持主手逻辑。
-- 挖掘附魔：效率、时运、精准采集和耐久附魔应按虚拟主手工具的原版逻辑表现。
-- 右键方块使用：原版会依次处理主手和副手。副手为空时，主手 `PASS` 后立即尝试解放槽工具，并跳过同次副手空包的重复回退；副手有物品时，仍只有副手 `PASS` 后才回退。解放槽中的锄、斧、锹或剪刀可作为最后回退执行右键方块操作，并消耗自身耐久。
-- 铁、钻石、下界合金饰品也可作为右键回退：支持铁锹铲平土径和熄灭营火、斧头去皮/刮锈/去蜡，以及剪刀雕刻南瓜和修剪生长藤蔓（设为最大年龄并停止继续生长）。铁饰品固定按斧头、铁锹顺序尝试（合成表不含锄头），潜行不会改变该顺序；成功时消耗饰品耐久并播放摆动动作。
-- 右键优先级：放置方块、主手右键、副手右键、解放槽工具右键；副手为空时，主手 `PASS` 后即可按槽位顺序尝试解放槽工具，副手非空时则等待副手 `PASS`。只有某槽返回 `PASS` 才继续下一槽，任何非 `PASS` 结果都会停止本次遍历。下一次右键会重新从首槽判断，可据此安排例如"先铲土径、再耕地"或"直接锄地"的顺序。
-- 手持物品时，主手右键返回 `PASS` 后解放槽同样接管回退，不受主手是否为空影响。例如手持铲子装备锄头时，第一次右键铲平土径、第二次锄头耕地。
-- 解放槽工具执行右键成功时，服务端无条件摆动 `MAIN_HAND`（原版 `sidedSuccess(false)` 返回 `CONSUME`，`shouldSwing()` 为 `false`），并返回 `CONSUME` 避免服务端按副手包再摆不同手。
-- 剪刀放入解放槽后破坏草、树叶、蕨类、枯萎灌木时，掉落物与原版手持剪刀行为一致（由战利品表决定）；能力饰品不会接管不需要正确工具的方块掉落。
-- 攻击：每次攻击取解放槽中最高攻击值，作为额外伤害叠加到当前攻击上，并消耗对应武器或工具耐久。
-- 攻击附魔：当前补充支持所选武器的锋利类伤害、火焰附加和抢夺等级；额外伤害继承暴击倍率。其他依赖“主手物品”的特殊攻击效果后续按需求单独兼容。
-- 防御：解放槽护甲提供护甲值和韧性，受到伤害时消耗对应护甲耐久，并通过保护类附魔补充减伤。
+## 挖掘
 
-## 虚拟主手、右键与攻击
+解放槽中每方块自动选择最优工具。主手无对应速度优势时，被选工具充当虚拟主手参与原版破坏流程，物品栏不变。
+Best free-hand tool auto-selected per block. When the main hand has no speed bonus, the tool acts as a virtual main hand — drops, enchantments, durability all follow vanilla.
 
-- 虚拟主手在服务器执行方块破坏流程，以及解放槽工具作为右键回退使用方块时有效。它不会交换或写入玩家真实主手物品栏，但相关原版流程会获得被选中的解放槽工具。
-- 主手对目标方块有速度加成时，主手始终优先；否则使用解放槽中最适合的工具作为虚拟主手。
-- 右键方块时，原版先处理主手，再处理副手。空副手时主手 `PASS` 可立即执行解放槽工具，并记录命中位置以跳过同次副手空包；副手有物品时，只有其完整方块交互返回 `PASS` 后才尝试解放槽工具。因此饰品工具每次物理右键只执行一次。
-- 近战攻击保留主手的完整原版攻击，并追加解放槽中伤害最高的武器或工具的伤害和已支持附魔。两个伤害部分共用本次攻击的暴击倍率，且所选解放槽武器正常消耗耐久。
-- 抢夺只读取实际参与追加伤害的解放槽武器，避免把另一槽的附魔当作无条件被动增益。
-- 击退、横扫和特定模组武器的自定义攻击回调尚未作为第二次完整 `Player.attack` 模拟；它们需要按各自机制单独兼容，避免与伤害无敌帧和攻击冷却冲突。
+剪刀在解放槽中对植物、蜘蛛网等掉落与原版一致。饰品不接管瞬破植物，也不干预有特定工具战利品表的方块。
+Shears in free hand give correct drops for plants, cobwebs, etc. Trinkets skip instant-break plants and tool-specific loot.
 
-## 已知限制
+## 右键方块
 
-- 解放槽工具通过虚拟主手上下文参与破坏流程和受支持的右键方块操作，不会写入或交换真实主手物品栏。
-- 能力饰品是自定义物品，不是原版工具或护甲；它们提供对应等级的数值与挖掘能力，但不会天然拥有原版工具、武器或护甲的全部特殊行为。
-- 无耐久物品使用原版 `Unbreakable` 标记；模组不维护额外的耐久白名单。
+优先级：放置方块 → 主手 → 副手 → 解放槽（按槽位顺序）。
+Priority: block placement → main hand → off hand → free hand (slot order).
 
-## 不再作为目标
+前一步返回 `PASS` 才继续下一项；主手/副手均 `PASS` 时解放槽接管。同一物理右键只执行一次饰品工具。
+Only `PASS` advances; free-hand fallback on dual `PASS`. One physical click runs free-hand tools once.
 
-以下旧规划已取消，不要按旧核心升级路线继续扩展：
+手持物品返回 `PASS` 时解放槽同样接管，如铲子铲不动土径则锄头耕地。
+Main-hand item returning `PASS` still falls through — e.g. shovel on dirt path, hoe tills.
 
-- 核心升级主线。
-- 特殊合成升级系统。
-- 核心附魔扩展。
-- 自定义能量单位。
-- FE、Mana、AE 等能量兼容层。
+成功时摆动主手，返回 `CONSUME`。
+On success: swings MAIN_HAND, returns CONSUME.
+
+## 战斗
+
+解放槽中伤害最高的武器额外叠加基础伤害、锋利/亡灵/节肢杀手、火焰附加和抢夺。额外伤害继承暴击倍率，仅实际参与叠伤的武器消耗耐久。
+Highest-damage free-hand weapon adds base damage + Sharpness/Smite/Bane + Fire Aspect + Looting. Bonus inherits crit; only contributor loses durability.
+
+## 防御
+
+解放槽护甲通过 transient attribute 添加护甲值和韧性。受伤时消耗耐久，保护类附魔参与减伤。饰品通过 Curios 属性接口提供防御。
+Free-hand armor adds points/toughness via transient attributes. Damage consumes durability; Protection enchants reduce damage. Trinkets use Curios attribute interface.
+
+## 耐久
+
+使用原版 `Unbreakable` 标记，没有自定义耐久白名单。
+Vanilla `Unbreakable` tag only; no custom whitelist.
 
 ## 依赖
 
-必需：
-
-- Minecraft `1.20.1`
-- Forge `47.4.10`
-- Curios `5.14.1+1.20.1`
-
-可选：
-
-- Patchouli `1.20.1-84.1-FORGE`
+| | 版本 | 必须 |
+|---|---|---|
+| Minecraft | 1.20.1 | 是 |
+| Forge | 47.4.10 | 是 |
+| Curios | 5.14.1+1.20.1 | 是 |
+| Patchouli | 1.20.1-84.1-FORGE | 可选 |
 
 ## 构建
-
-从项目目录运行：
 
 ```powershell
 $env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 .\gradlew.bat build --no-daemon --max-workers=1 --console=plain
 ```
 
-构建产物位于：
+产物 `build/libs/freehands-0.1.0.jar`
 
-```text
-build/libs/freehands-0.1.0.jar
-```
-
-## IntelliJ IDEA
-
-打开项目目录后，先生成运行配置：
+启动客户端：
 
 ```powershell
-$env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
-.\gradlew.bat genIntellijRuns
+.\gradlew.bat runClient
 ```
 
-然后在 IDEA 的 Gradle 面板或运行配置中启动：
+自动化测试（33 项）：
 
-```text
-runClient
+```powershell
+.\gradlew.bat runGameTestServer --no-daemon --max-workers=1 --console=plain
 ```
 
-## 手动测试
+## 许可证
 
-- 客户端能正常启动。
-- Curios UI 显示两个“解放槽”。
-- 铁镐可放入解放槽，空手能挖铁镐等级方块。
-- 空手或主手没有对应方块速度加成、解放槽放合适工具时，解放槽工具应掉耐久；主手有速度加成时应保持主手逻辑。
-- 带效率、时运、精准采集、耐久附魔的解放槽工具应按对应附魔表现。
-- 铁剑可放入解放槽，攻击伤害提高。
-- 解放槽武器或工具参与攻击时，对应槽内物品应掉耐久。
-- 带锋利、火焰附加、抢夺、耐久附魔的解放槽武器应按对应附魔表现。
-- 护甲可放入解放槽，护甲值变化。
-- 解放槽护甲受到攻击后应掉耐久，保护类附魔应参与减伤。
-- 铁饰品可放入解放槽，并提供铁级挖掘、攻击和基础防御。
-- 钻石和下界合金饰品可放入解放槽，并提供对应等级能力；下界合金饰品还提供击退抗性。
-- 主、副手均为空时，解放槽中的铁锹右键草方块可生成土径并消耗铁锹耐久。
-- 主手放置方块、主手右键和副手右键均应优先于解放槽工具右键。
-- 未安装 Patchouli 时，模组仍能启动。
-- 安装 Patchouli 时，手册内容可读取。
+保留所有权利。All rights reserved.
