@@ -720,6 +720,35 @@ public final class IronTrinketGameTests {
             helper.succeed();
         });
     }
+
+    @GameTest(template = "empty")
+    public static void freeHandToolFiresWhenMainHandItemReturnsPASS(GameTestHelper helper) {
+        BlockPos dirtPos = new BlockPos(1, 2, 1);
+        ServerPlayer player = new ServerPlayer(helper.getLevel().getServer(), helper.getLevel(),
+                new GameProfile(UUID.randomUUID(), "test-server-player"));
+        ItemStack shovel = new ItemStack(Items.IRON_SHOVEL);
+        ItemStack hoe = new ItemStack(Items.IRON_HOE);
+        player.setItemInHand(InteractionHand.MAIN_HAND, shovel);
+        equipTrinket(player, 0, hoe);
+        helper.setBlock(dirtPos, Blocks.DIRT);
+
+        helper.runAfterDelay(2, () -> {
+            BlockPos absolute = helper.absolutePos(dirtPos);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absolute), Direction.UP, absolute, false);
+            player.gameMode.useItemOn(player, helper.getLevel(), shovel, InteractionHand.MAIN_HAND, hit);
+            helper.assertBlockPresent(Blocks.DIRT_PATH, dirtPos);
+            helper.assertTrue(shovel.getDamageValue() == 1,
+                    "The main-hand shovel should flatten dirt");
+            helper.assertTrue(hoe.getDamageValue() == 0,
+                    "A free-hand hoe must not run when the main-hand tool handles the interaction");
+
+            player.gameMode.useItemOn(player, helper.getLevel(), shovel, InteractionHand.MAIN_HAND, hit);
+            helper.assertBlockPresent(Blocks.FARMLAND, dirtPos);
+            helper.assertTrue(hoe.getDamageValue() == 1,
+                    "A free-hand hoe should till a dirt path when the main-hand shovel returns PASS");
+            helper.succeed();
+        });
+    }
     private static boolean closeTo(double actual, double expected) {
         return Math.abs(actual - expected) <= EPSILON;
     }

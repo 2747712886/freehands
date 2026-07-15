@@ -176,9 +176,6 @@ public final class FreeHandEvents {
     }
 
     public static List<ItemStack> freeHandUseStacks(Player player) {
-        if (!player.getMainHandItem().isEmpty()) {
-            return List.of();
-        }
         return freeHandStacks(player).stream()
                 .filter(FreeHandEvents::canUseOnBlock)
                 .toList();
