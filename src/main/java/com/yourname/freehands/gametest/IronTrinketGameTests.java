@@ -632,6 +632,94 @@ public final class IronTrinketGameTests {
         return healthBefore - player.getHealth();
     }
 
+
+    // ── Plant / foliage drop correctness ──
+
+    @GameTest(template = "empty")
+    public static void ironTrinketOnGrassDropsSeedsNotGrassBlock(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 2, 1);
+        Player player = spawnPlayer(helper);
+        ItemStack trinket = ModItems.IRON_TRINKET.get().getDefaultInstance();
+        equipTrinket(player, trinket);
+        helper.setBlock(pos, Blocks.GRASS);
+
+        helper.runAfterDelay(2, () -> {
+            BlockPos absolute = helper.absolutePos(pos);
+            VirtualMainHandContext.beginMining(player, Blocks.GRASS.defaultBlockState());
+            Blocks.GRASS.playerDestroy(helper.getLevel(), player, absolute,
+                    Blocks.GRASS.defaultBlockState(), null, player.getMainHandItem());
+            VirtualMainHandContext.endMining(player);
+            helper.assertItemEntityNotPresent(Items.GRASS, pos, 2.0D);
+            helper.assertTrue(trinket.getDamageValue() == 0,
+                    "An Iron Trinket should not participate in breaking grass");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void shearsInFreeHandOnGrassDropsGrassBlock(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 2, 1);
+        Player player = spawnPlayer(helper);
+        ItemStack shears = new ItemStack(Items.SHEARS);
+        equipTrinket(player, shears);
+        helper.setBlock(pos, Blocks.GRASS);
+
+        helper.runAfterDelay(2, () -> {
+            BlockPos absolute = helper.absolutePos(pos);
+            VirtualMainHandContext.beginMining(player, Blocks.GRASS.defaultBlockState());
+            Blocks.GRASS.playerDestroy(helper.getLevel(), player, absolute,
+                    Blocks.GRASS.defaultBlockState(), null, player.getMainHandItem());
+            VirtualMainHandContext.endMining(player);
+            helper.assertItemEntityPresent(Items.GRASS, pos, 2.0D);
+            helper.assertTrue(shears.getDamageValue() == 0,
+                    "Shears should not lose durability when breaking grass");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void ironTrinketCanBeEnchanted(GameTestHelper helper) {
+        Player player = spawnPlayer(helper);
+        ItemStack trinket = ModItems.IRON_TRINKET.get().getDefaultInstance();
+
+        helper.runAfterDelay(2, () -> {
+            helper.assertTrue(trinket.isEnchantable(),
+                    "An Iron Trinket must be enchantable");
+            helper.assertTrue(trinket.getItem().getEnchantmentValue() > 0,
+                    "An Iron Trinket must have a positive enchantability value");
+
+            EnchantmentHelper.setEnchantments(Map.of(Enchantments.BLOCK_EFFICIENCY, 1), trinket);
+            int level = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.BLOCK_EFFICIENCY, trinket);
+            helper.assertTrue(level == 1,
+                    "An Iron Trinket should accept Efficiency I; actual level: " + level);
+
+            EnchantmentHelper.setEnchantments(Map.of(Enchantments.ALL_DAMAGE_PROTECTION, 1), trinket);
+            int protLevel = EnchantmentHelper.getItemEnchantmentLevel(Enchantments.ALL_DAMAGE_PROTECTION, trinket);
+            helper.assertTrue(protLevel == 1,
+                    "An Iron Trinket should accept Protection I; actual level: " + protLevel);
+
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void ironTrinketOnLeavesDoesNotDropLeavesBlock(GameTestHelper helper) {
+        BlockPos pos = new BlockPos(1, 2, 1);
+        Player player = spawnPlayer(helper);
+        ItemStack trinket = ModItems.IRON_TRINKET.get().getDefaultInstance();
+        equipTrinket(player, trinket);
+        helper.setBlock(pos, Blocks.OAK_LEAVES);
+
+        helper.runAfterDelay(2, () -> {
+            BlockPos absolute = helper.absolutePos(pos);
+            VirtualMainHandContext.beginMining(player, Blocks.OAK_LEAVES.defaultBlockState());
+            Blocks.OAK_LEAVES.playerDestroy(helper.getLevel(), player, absolute,
+                    Blocks.OAK_LEAVES.defaultBlockState(), null, player.getMainHandItem());
+            VirtualMainHandContext.endMining(player);
+            helper.assertItemEntityNotPresent(Items.OAK_LEAVES, pos, 2.0D);
+            helper.succeed();
+        });
+    }
     private static boolean closeTo(double actual, double expected) {
         return Math.abs(actual - expected) <= EPSILON;
     }

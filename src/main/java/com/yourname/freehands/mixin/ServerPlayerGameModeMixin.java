@@ -16,9 +16,13 @@ import org.spongepowered.asm.mixin.injection.At;
 import org.spongepowered.asm.mixin.injection.Inject;
 import org.spongepowered.asm.mixin.injection.ModifyVariable;
 import org.spongepowered.asm.mixin.injection.callback.CallbackInfoReturnable;
+import org.spongepowered.asm.mixin.Unique;
 
 @Mixin(ServerPlayerGameMode.class)
 public abstract class ServerPlayerGameModeMixin {
+    @Unique
+    private BlockPos freehands$mainHandFallbackPos;
+
     @Shadow
     protected ServerPlayer player;
 
@@ -41,24 +45,55 @@ public abstract class ServerPlayerGameModeMixin {
     private void freehands$endVirtualToolUse(ServerPlayer player, Level level, ItemStack stack,
                                              InteractionHand hand, BlockHitResult hitResult,
                                              CallbackInfoReturnable<InteractionResult> callback) {
-        if (VirtualMainHandContext.getVirtualMainHand(player).isPresent()
-                || callback.getReturnValue() != InteractionResult.PASS
-                || hand != InteractionHand.OFF_HAND) {
+        if (VirtualMainHandContext.getVirtualMainHand(player).isPresent()) {
             return;
         }
 
+        if (hand == InteractionHand.MAIN_HAND) {
+            freehands$mainHandFallbackPos = null;
+            if (callback.getReturnValue() != InteractionResult.PASS || !player.getOffhandItem().isEmpty()) {
+                return;
+            }
+
+            InteractionResult result = freehands$useFreeHandTool(player, level, hitResult);
+            if (result != InteractionResult.PASS) {
+                freehands$mainHandFallbackPos = hitResult.getBlockPos().immutable();
+                player.swing(InteractionHand.MAIN_HAND, true);
+                callback.setReturnValue(InteractionResult.CONSUME);
+            }
+            return;
+        }
+
+        if (hand != InteractionHand.OFF_HAND || callback.getReturnValue() != InteractionResult.PASS) {
+            return;
+        }
+
+        if (hitResult.getBlockPos().equals(freehands$mainHandFallbackPos)) {
+            freehands$mainHandFallbackPos = null;
+            return;
+        }
+
+        InteractionResult result = freehands$useFreeHandTool(player, level, hitResult);
+        if (result != InteractionResult.PASS) {
+            player.swing(InteractionHand.MAIN_HAND, true);
+            callback.setReturnValue(InteractionResult.CONSUME);
+        }
+    }
+
+    @Unique
+    private InteractionResult freehands$useFreeHandTool(ServerPlayer player, Level level, BlockHitResult hitResult) {
         for (ItemStack freeHandStack : FreeHandEvents.freeHandUseStacks(player)) {
             VirtualMainHandContext.beginUsing(player, freeHandStack);
             try {
                 InteractionResult result = ((ServerPlayerGameMode) (Object) this).useItemOn(
                         player, level, freeHandStack, InteractionHand.MAIN_HAND, hitResult);
                 if (result != InteractionResult.PASS) {
-                    callback.setReturnValue(result);
-                    return;
+                    return result;
                 }
             } finally {
                 VirtualMainHandContext.endUsing(player);
             }
         }
+        return InteractionResult.PASS;
     }
 }

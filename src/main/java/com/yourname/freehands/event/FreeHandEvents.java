@@ -204,6 +204,9 @@ public final class FreeHandEvents {
         if (ability.isPresent()) {
             return canHarvestWithAbility(state, ability.get());
         }
+        if (stack.getItem() instanceof ShearsItem) {
+            return true;
+        }
         return stack.isCorrectToolForDrops(state);
     }
 
@@ -321,7 +324,13 @@ public final class FreeHandEvents {
 
     private static boolean canHarvestWithAbility(BlockState state, FreeHandAbility ability) {
         if (!state.requiresCorrectToolForDrops()) {
-            return true;
+            if (state.is(BlockTags.REPLACEABLE)) {
+                return false;
+            }
+            return state.is(BlockTags.MINEABLE_WITH_PICKAXE)
+                        || state.is(BlockTags.MINEABLE_WITH_SHOVEL)
+                        || state.is(BlockTags.MINEABLE_WITH_AXE)
+                        || state.is(BlockTags.MINEABLE_WITH_HOE);
         }
         if (state.is(BlockTags.NEEDS_DIAMOND_TOOL)) {
             return ability.harvestLevel() >= 3;

@@ -13,6 +13,7 @@ import net.minecraft.sounds.SoundEvents;
 import net.minecraft.sounds.SoundSource;
 import net.minecraft.tags.BlockTags;
 import net.minecraft.world.InteractionResult;
+import net.minecraft.world.item.enchantment.Enchantment;
 import net.minecraft.world.entity.ai.attributes.Attribute;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
@@ -58,9 +59,6 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
 
     @Override
     public boolean isCorrectToolForDrops(ItemStack stack, BlockState state) {
-        if (!state.requiresCorrectToolForDrops()) {
-            return true;
-        }
         if (state.is(BlockTags.NEEDS_DIAMOND_TOOL)) {
             return ability.harvestLevel() >= 3;
         }
@@ -153,7 +151,6 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
             level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(player, modifiedState));
             if (player != null) {
                 FreeHandEvents.damageFreeHandItem(context.getItemInHand(), player, 1);
-                player.swing(context.getHand(), true);
             }
         }
         return InteractionResult.sidedSuccess(level.isClientSide());
@@ -165,7 +162,7 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
                 || ToolActions.DEFAULT_SHOVEL_ACTIONS.contains(toolAction)
                 || ToolActions.DEFAULT_AXE_ACTIONS.contains(toolAction)
                 || ToolActions.DEFAULT_HOE_ACTIONS.contains(toolAction)
-                || ToolActions.DEFAULT_SHEARS_ACTIONS.contains(toolAction);
+                || toolAction == ToolActions.SHEARS_CARVE;
     }
 
     @Override
@@ -181,6 +178,16 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
             modifiers.put(Attributes.KNOCKBACK_RESISTANCE, new AttributeModifier(uuid, "Free hand trinket knockback resistance", ability.knockbackResistance(), AttributeModifier.Operation.ADDITION));
         }
         return modifiers;
+    }
+
+    @Override
+    public int getEnchantmentValue() {
+        return ability.enchantmentValue();
+    }
+
+    @Override
+    public boolean canApplyAtEnchantingTable(ItemStack stack, Enchantment enchantment) {
+        return true;
     }
 
     @Override
