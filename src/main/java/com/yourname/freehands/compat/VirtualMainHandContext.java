@@ -17,7 +17,15 @@ public final class VirtualMainHandContext {
     }
 
     public static void beginMining(Player player, BlockState state) {
-        FreeHandEvents.selectedMiningStack(player, state)
+        Optional<ItemStack> selectedStack = FreeHandEvents.selectedMiningStack(player, state);
+        if (selectedStack.isPresent()) {
+            ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), selectedStack.get()));
+            return;
+        }
+
+        // Mods such as Ultimine call destroyBlock recursively. Keep the outer
+        // virtual tool visible until every nested block break has completed.
+        getVirtualMainHand(player)
                 .ifPresent(stack -> ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), stack)));
     }
 

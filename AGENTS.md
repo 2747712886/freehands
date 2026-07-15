@@ -137,6 +137,16 @@ $env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 
 ## 运行时注意
 
+## Ultimine 兼容测试
+
+- FTB Ultimine `2001.1.8`（Minecraft `1.20.1` / Forge）依赖 Architectury `>= 9.2.14` 与 FTB Library `>= 2001.2.1`。开发测试使用 `architectury-9.2.14-forge.jar`、`ftb-library-forge-2001.2.12.jar` 与 `ftb-ultimine-forge-2001.1.8.jar`，全部放在 `run/dev-mods`。
+- 不要把上述生产 JAR 直接放进 `run/mods`：在官方映射的 ForgeGradle 开发环境中，Architectury 的未重映射 refmap 会导致 `MixinFallingBlockEntity` 找不到字段并崩溃。
+- 三个 JAR 都在 `run/dev-mods` 时，IDEA、普通 `runClient` 和 `runGameTestServer` 会自动通过 `fg.deobf` 重映射并加载它们，无需额外参数；缺少任意 JAR 时自动跳过，不影响干净构建。需要临时关闭时使用 `-PenableUltimineCompatibility=false`。无论哪种情况，依赖都不会进入发布产物。
+- 已验证该开关下 Architectury、FTB Library、FTB Ultimine 与 Free Hands 均完成客户端加载；Ultimine 会嵌套调用 `ServerPlayerGameMode.destroyBlock`，虚拟主手上下文必须为每次嵌套调用成对入栈和出栈，不能在内层返回时清除外层工具。
+- 不要把解放槽工具映射到 Ultimine 的 `RIGHT_CLICK_BLOCK` 预处理事件。只要 Ultimine 处理成功，Architectury 就会取消整个原版右键包，导致客户端放置预测被服务器回滚，且无法保证放置方块、主手、副手、解放槽的既定优先级。当前仅兼容 Ultimine 左键连锁采集；解放槽工具右键仍在原版 `ServerPlayerGameMode.useItemOn` 回退阶段执行。
+- `ultimineDoesNotCancelFreeHandRightClick` 与 `ultimineDoesNotCancelMainHandBlockPlacement` 通过 Forge 的真实右键事件验证：按住 Ultimine 时不允许取消解放槽或主手方块的原版右键包，随后由既有的解放槽回退逻辑处理工具右键。测试用静默网络连接只用于避免 GameTest 人工 `ServerPlayer` 缺失客户端连接，不能移入生产代码。
+- `ultimineDamagesFreeHandPickaxeForEveryBrokenBlock` 通过真实 Forge `BlockEvent.BREAK` 验证左键连锁：解放槽铁镐破坏两个相邻石头时，两个方块均被破坏、工具恰好损耗两点耐久，且物理主手保持为空。Ultimine 会自行递归破坏并取消最外层 `destroyBlock` 调用，因此测试应断言最终方块状态和耐久，不应断言最外层返回值。
+
 Patchouli 在 Forge 开发运行环境中需要 Mixin refmap remapping。保留 Forge run 配置中的：
 
 ```groovy
