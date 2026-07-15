@@ -13,6 +13,8 @@ public final class ModItems {
     private static final DeferredRegister<Item> ITEMS = DeferredRegister.create(ForgeRegistries.ITEMS, FreeHands.MODID);
 
     public static final RegistryObject<Item> IRON_TRINKET = ITEMS.register("iron_trinket", () -> new AbilityTrinketItem(new Item.Properties().stacksTo(1).durability(2048), FreeHandAbility.IRON_TRINKET));
+    public static final RegistryObject<Item> DIAMOND_TRINKET = ITEMS.register("diamond_trinket", () -> new AbilityTrinketItem(new Item.Properties().stacksTo(1).durability(4096), FreeHandAbility.DIAMOND_TRINKET));
+    public static final RegistryObject<Item> NETHERITE_TRINKET = ITEMS.register("netherite_trinket", () -> new AbilityTrinketItem(new Item.Properties().stacksTo(1).durability(8192), FreeHandAbility.NETHERITE_TRINKET));
 
     private ModItems() {
     }

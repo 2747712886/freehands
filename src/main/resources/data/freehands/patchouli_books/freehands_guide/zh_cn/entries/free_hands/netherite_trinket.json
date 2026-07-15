@@ -1,0 +1,16 @@
+{
+  "name": "下界合金饰品",
+  "icon": "freehands:netherite_trinket",
+  "category": "freehands:free_hands",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "下界合金饰品装备在解放槽后，提供下界合金级挖掘、下界合金剑等级攻击和完整下界合金套的防御、韧性与击退抗性。它的 8192 点耐久由这些能力共同消耗。"
+    },
+    {
+      "type": "patchouli:smithing",
+      "recipe": "freehands:netherite_trinket",
+      "text": "在锻造台中使用下界合金升级模板、钻石饰品与下界合金块升级。"
+    }
+  ]
+}

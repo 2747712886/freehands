@@ -1,5 +1,7 @@
 {
   "item.freehands.iron_trinket": "Iron Trinket",
+  "item.freehands.diamond_trinket": "Diamond Trinket",
+  "item.freehands.netherite_trinket": "Netherite Trinket",
   "itemGroup.freehands.free_hands": "Free Hands",
   "tooltip.freehands.slot.free_hand": "Slot: Free Hand",
   "curios.identifier.free_hand": "Free Hand"

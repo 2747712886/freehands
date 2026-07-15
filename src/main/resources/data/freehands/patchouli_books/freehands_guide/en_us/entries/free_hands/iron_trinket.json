@@ -5,7 +5,7 @@
   "pages": [
     {
       "type": "patchouli:text",
-      "text": "The Iron Trinket combines iron-level mining, iron sword level attack damage, and basic armor while equipped in a Free Hand slot. Its 2048 durability is shared by the abilities it provides."
+      "text": "The Iron Trinket combines iron-level mining, iron sword level attack damage, and the defense of a complete iron armor set while equipped in a Free Hand slot. Its 2048 durability is shared by the abilities it provides."
     },
     {
       "type": "patchouli:crafting",

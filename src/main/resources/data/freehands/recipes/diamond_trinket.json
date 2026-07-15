@@ -1,0 +1,20 @@
+{
+  "type": "minecraft:crafting_shaped",
+  "pattern": [
+    "HWC",
+    "AIP",
+    "BSL"
+  ],
+  "key": {
+    "H": { "item": "minecraft:diamond_helmet" },
+    "W": { "item": "minecraft:diamond_sword" },
+    "C": { "item": "minecraft:diamond_chestplate" },
+    "A": { "item": "minecraft:diamond_axe" },
+    "I": { "item": "minecraft:diamond_block" },
+    "P": { "item": "minecraft:diamond_pickaxe" },
+    "B": { "item": "minecraft:diamond_boots" },
+    "S": { "item": "minecraft:diamond_shovel" },
+    "L": { "item": "minecraft:diamond_leggings" }
+  },
+  "result": { "item": "freehands:diamond_trinket" }
+}

@@ -2,6 +2,7 @@ package com.yourname.freehands.mixin;
 
 import com.yourname.freehands.compat.VirtualMainHandContext;
 import net.minecraft.world.entity.LivingEntity;
+import net.minecraft.world.InteractionHand;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ItemStack;
 import org.spongepowered.asm.mixin.Mixin;
@@ -14,6 +15,14 @@ public abstract class LivingEntityMixin {
     @Inject(method = "getMainHandItem", at = @At("RETURN"), cancellable = true)
     private void freehands$useVirtualMiningMainHand(CallbackInfoReturnable<ItemStack> callback) {
         if ((Object) this instanceof Player player) {
+            VirtualMainHandContext.getVirtualMainHand(player).ifPresent(callback::setReturnValue);
+        }
+    }
+
+    @Inject(method = "getItemInHand", at = @At("RETURN"), cancellable = true)
+    private void freehands$useVirtualMainHandForInteractions(InteractionHand hand,
+                                                               CallbackInfoReturnable<ItemStack> callback) {
+        if (hand == InteractionHand.MAIN_HAND && (Object) this instanceof Player player) {
             VirtualMainHandContext.getVirtualMainHand(player).ifPresent(callback::setReturnValue);
         }
     }

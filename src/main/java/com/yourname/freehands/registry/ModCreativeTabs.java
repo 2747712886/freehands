@@ -16,7 +16,11 @@ public final class ModCreativeTabs {
             .withTabsBefore(CreativeModeTabs.COMBAT)
             .title(Component.translatable("itemGroup.freehands.free_hands"))
             .icon(() -> ModItems.IRON_TRINKET.get().getDefaultInstance())
-            .displayItems((parameters, output) -> output.accept(ModItems.IRON_TRINKET.get()))
+            .displayItems((parameters, output) -> {
+                output.accept(ModItems.IRON_TRINKET.get());
+                output.accept(ModItems.DIAMOND_TRINKET.get());
+                output.accept(ModItems.NETHERITE_TRINKET.get());
+            })
             .build());
 
     private ModCreativeTabs() {

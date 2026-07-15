@@ -1,0 +1,16 @@
+{
+  "name": "钻石饰品",
+  "icon": "freehands:diamond_trinket",
+  "category": "freehands:free_hands",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "钻石饰品装备在解放槽后，提供钻石级挖掘、钻石剑等级攻击和完整钻石套的防御与韧性。它的 4096 点耐久由这些能力共同消耗。"
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "freehands:diamond_trinket",
+      "text": "以钻石块为中心，将四件钻石甲与钻石剑、钻石斧、钻石锹、钻石镐交替环绕合成。"
+    }
+  ]
+}

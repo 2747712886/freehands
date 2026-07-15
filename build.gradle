@@ -242,10 +242,30 @@ tasks.configureEach {
     }
 }
 
-dependencies {
-    runtimeOnly fg.deobf("devmods:jei-1.20.1-forge:${jei_version}")
-    runtimeOnly fg.deobf("devmods:imblocker:${imblocker_version}+1.20")
-    runtimeOnly fg.deobf("devmods:jecharacters-1.20.1-forge:${just_enough_characters_version}")
+// Minecraft 1.20.1 GameTest loads SNBT fixtures from the run directory rather
+// than a data pack. Keep the source fixture versioned and stage it before each
+// GameTest-server launch.
+def copyGameTestStructures = tasks.register('copyGameTestStructures', Copy) {
+    from('src/gametest/resources')
+    into('run')
+}
+
+tasks.configureEach {
+    if (name == 'prepareRunGameTestServer') {
+        dependsOn copyGameTestStructures
+    }
+}
+
+def runningGameTestServer = gradle.startParameter.taskNames.any { taskName ->
+    taskName == 'runGameTestServer' || taskName.endsWith(':runGameTestServer')
+}
+
+if (!runningGameTestServer) {
+    dependencies {
+        runtimeOnly fg.deobf("devmods:jei-1.20.1-forge:${jei_version}")
+        runtimeOnly fg.deobf("devmods:imblocker:${imblocker_version}+1.20")
+        runtimeOnly fg.deobf("devmods:jecharacters-1.20.1-forge:${just_enough_characters_version}")
+    }
 }
 
 // This block of code expands all declared replace properties in the specified resource targets.

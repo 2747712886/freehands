@@ -2,6 +2,8 @@
   "replace": false,
   "values": [
     "freehands:iron_trinket",
+    "freehands:diamond_trinket",
+    "freehands:netherite_trinket",
     "#minecraft:axes",
     "#minecraft:hoes",
     "#minecraft:pickaxes",

@@ -1,0 +1,16 @@
+{
+  "name": "Diamond Trinket",
+  "icon": "freehands:diamond_trinket",
+  "category": "freehands:free_hands",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "The Diamond Trinket combines diamond-level mining, diamond sword level attack damage, and the defense and toughness of a complete diamond armor set. Its 4096 durability is shared by the abilities it provides."
+    },
+    {
+      "type": "patchouli:crafting",
+      "recipe": "freehands:diamond_trinket",
+      "text": "Craft it by alternating the four diamond armor pieces and diamond sword, axe, shovel, and pickaxe around a diamond block."
+    }
+  ]
+}

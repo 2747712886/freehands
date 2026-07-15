@@ -1,0 +1,16 @@
+{
+  "name": "Netherite Trinket",
+  "icon": "freehands:netherite_trinket",
+  "category": "freehands:free_hands",
+  "pages": [
+    {
+      "type": "patchouli:text",
+      "text": "The Netherite Trinket combines netherite-level mining, netherite sword level attack damage, and the defense, toughness, and knockback resistance of a complete netherite armor set. Its 8192 durability is shared by the abilities it provides."
+    },
+    {
+      "type": "patchouli:smithing",
+      "recipe": "freehands:netherite_trinket",
+      "text": "Upgrade a Diamond Trinket with a Netherite Upgrade Smithing Template and a netherite block."
+    }
+  ]
+}
