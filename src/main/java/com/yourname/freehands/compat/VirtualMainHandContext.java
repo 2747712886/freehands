@@ -19,14 +19,14 @@ public final class VirtualMainHandContext {
     public static void beginMining(Player player, BlockState state) {
         Optional<ItemStack> selectedStack = FreeHandEvents.selectedMiningStack(player, state);
         if (selectedStack.isPresent()) {
-            ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), selectedStack.get()));
+            ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), selectedStack.get(), false));
             return;
         }
 
         // Mods such as Ultimine call destroyBlock recursively. Keep the outer
         // virtual tool visible until every nested block break has completed.
         getVirtualMainHand(player)
-                .ifPresent(stack -> ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), stack)));
+                .ifPresent(stack -> ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), stack, false)));
     }
 
     public static void endMining(Player player) {
@@ -47,7 +47,7 @@ public final class VirtualMainHandContext {
     }
 
     public static void beginUsing(Player player, ItemStack stack) {
-        ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), stack));
+        ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), stack, true));
     }
 
     public static void endUsing(Player player) {
@@ -64,6 +64,15 @@ public final class VirtualMainHandContext {
         return stack.playerId().equals(player.getUUID()) ? Optional.of(stack.stack()) : Optional.empty();
     }
 
-    private record Entry(UUID playerId, ItemStack stack) {
+    public static boolean isUsing(Player player) {
+        Deque<Entry> stacks = ACTIVE_MAIN_HAND_STACKS.get();
+        if (stacks.isEmpty()) {
+            return false;
+        }
+        Entry stack = stacks.peek();
+        return stack.playerId().equals(player.getUUID()) && stack.useForRightClick();
+    }
+
+    private record Entry(UUID playerId, ItemStack stack, boolean useForRightClick) {
     }
 }

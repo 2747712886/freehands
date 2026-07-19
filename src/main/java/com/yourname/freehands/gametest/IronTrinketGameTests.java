@@ -329,6 +329,26 @@ public final class IronTrinketGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void freeHandRightClickSendsSoundToActingPlayer(GameTestHelper helper) {
+        BlockPos grassPos = new BlockPos(1, 2, 1);
+        ServerPlayer player = spawnSoundReceivingServerPlayer(helper);
+        ItemStack shovel = new ItemStack(Items.IRON_SHOVEL);
+        equipTrinket(player, shovel);
+        helper.setBlock(grassPos, Blocks.GRASS_BLOCK);
+
+        helper.runAfterDelay(2, () -> {
+            SilentServerGamePacketListener connection = (SilentServerGamePacketListener) player.connection;
+            connection.clearSoundPackets();
+            useEmptyMainHandOn(player, helper, grassPos);
+            helper.assertBlockPresent(Blocks.DIRT_PATH, grassPos);
+            helper.assertTrue(connection.soundPacketCount() == 1,
+                    "A successful free-hand tool right-click must send its sound to the acting player");
+            helper.getLevel().getServer().getPlayerList().remove(player);
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
     public static void freeHandHoeCanTillDirtWithRightClick(GameTestHelper helper) {
         BlockPos dirtPos = new BlockPos(1, 2, 1);
         ServerPlayer player = new ServerPlayer(helper.getLevel().getServer(), helper.getLevel(),
@@ -904,6 +924,16 @@ public final class IronTrinketGameTests {
         return player;
     }
 
+    private static ServerPlayer spawnSoundReceivingServerPlayer(GameTestHelper helper) {
+        ServerPlayer player = new TestServerPlayer(helper.getLevel().getServer(), helper.getLevel(),
+                new GameProfile(UUID.randomUUID(), "freehands-sound-test"));
+        player.getServer().getPlayerList().placeNewPlayer(
+                new SilentConnection(), player);
+        player.connection = new SilentServerGamePacketListener(helper.getLevel().getServer(), player);
+        player.setPos(helper.absolutePos(new BlockPos(1, 2, 4)).getCenter());
+        return player;
+    }
+
     private static final class TestServerPlayer extends ServerPlayer {
         private TestServerPlayer(net.minecraft.server.MinecraftServer server, net.minecraft.server.level.ServerLevel level,
                                  GameProfile profile) {
@@ -914,22 +944,54 @@ public final class IronTrinketGameTests {
         public void swing(InteractionHand hand) {
             // The GameTest player has no packet connection; production players do.
         }
+
+        @Override
+        public void swing(InteractionHand hand, boolean updateSelf) {
+        }
     }
 
     private static final class SilentServerGamePacketListener extends net.minecraft.server.network.ServerGamePacketListenerImpl {
+        private int soundPackets;
+
         private SilentServerGamePacketListener(net.minecraft.server.MinecraftServer server, ServerPlayer player) {
-            super(server, new net.minecraft.network.Connection(net.minecraft.network.protocol.PacketFlow.SERVERBOUND), player);
+            super(server, new SilentConnection(), player);
         }
 
         @Override
         public void send(net.minecraft.network.protocol.Packet<?> packet) {
-            // This test deliberately has no network peer.
+            if (packet instanceof net.minecraft.network.protocol.game.ClientboundSoundPacket) {
+                soundPackets++;
+            }
         }
 
         @Override
         public void send(net.minecraft.network.protocol.Packet<?> packet,
                          net.minecraft.network.PacketSendListener listener) {
-            // This test deliberately has no network peer.
+            send(packet);
+        }
+
+        private void clearSoundPackets() {
+            soundPackets = 0;
+        }
+
+        private int soundPacketCount() {
+            return soundPackets;
+        }
+    }
+
+    private static final class SilentConnection extends net.minecraft.network.Connection {
+        private SilentConnection() {
+            super(net.minecraft.network.protocol.PacketFlow.SERVERBOUND);
+            new io.netty.channel.embedded.EmbeddedChannel(this);
+        }
+
+        @Override
+        public void send(net.minecraft.network.protocol.Packet<?> packet) {
+        }
+
+        @Override
+        public void send(net.minecraft.network.protocol.Packet<?> packet,
+                         net.minecraft.network.PacketSendListener listener) {
         }
     }
 

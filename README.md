@@ -65,7 +65,6 @@ Vanilla `Unbreakable` tag only; no custom whitelist.
 | Minecraft | 1.20.1 | 是 |
 | Forge | 47.4.10 | 是 |
 | Curios | 5.14.1+1.20.1 | 是 |
-| Patchouli | 1.20.1-84.1-FORGE | 可选 |
 
 ## 构建
 
@@ -82,7 +81,7 @@ $env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 .\gradlew.bat runClient
 ```
 
-自动化测试（33 项）：
+自动化测试（38 项）：
 
 ```powershell
 .\gradlew.bat runGameTestServer --no-daemon --max-workers=1 --console=plain

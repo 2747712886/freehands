@@ -14,6 +14,7 @@
 - It also verifies that an iron trinket harvests stone with a cobblestone drop and loses one durability during mining. During virtual-main-hand `destroyBlock` processing, the harvest check must inspect the equipped stack directly because the selection rule sees the already-virtual stack; outside that context, retain main-hand priority.
 - It verifies that an empty main hand can right-click a grass block with a free-hand shovel, producing a dirt path and consuming one durability. `UseOnContext` reads `getItemInHand(MAIN_HAND)`, so virtual-main-hand support must cover both `getMainHandItem` and `getItemInHand` during `ServerPlayerGameMode.useItemOn`.
 - `ironTrinketCanFlattenGrassBlockWithRightClick`, `ironTrinketCanStripOakLogWithRightClick`, `ironTrinketCanTillDirtPathWithRightClick`, `ironTrinketCanCarvePumpkinWithRightClick`, `ironTrinketCanScrapeCopperWithRightClick`, `ironTrinketCanRemoveCopperWaxWithRightClick`, and `ironTrinketCanMatureGrowingVinesWithRightClick` verify the ability trinket's multi-tool block actions. It supports shovel flattening/campfire dousing, axe stripping/scraping/wax removal, pumpkin carving, and growing-plant maturation. Its block-action order is axe then shovel. Hoe tilling is not supported since the recipe does not include a hoe. Every successful action costs one durability and broadcasts a main-hand swing.
+- `freeHandRightClickSendsSoundToActingPlayer` registers an embedded test player and verifies that a successful free-hand shovel right-click sends exactly one `ClientboundSoundPacket` to the acting player. Vanilla server sound calls exclude the actor because a physical hand normally predicts the sound locally; during `VirtualMainHandContext.isUsing`, the `Level.playSound` mixin must clear that exclusion so virtual tools and ability trinkets have audible feedback. Do not apply this behavior to mining contexts.
 - `freeHandHoeCanTillDirtWithRightClick`, `freeHandAxeCanStripOakLogWithRightClick`, and `freeHandShearsCanCarvePumpkinWithRightClick` verify that each regular tool works when it is the only item in a free-hand slot. `ironTrinketDoesNotOverrideSlotOrderWhileSneaking` verifies the first-slot trinket still flattens dirt before a later hoe, including while sneaking.
 - `unbreakableFreeHandToolDoesNotLoseDurability` equips an iron shovel with the vanilla `Unbreakable` NBT flag, flattens a grass block, and asserts that its damage remains zero. Durability code must use `ItemStack.isDamageableItem()` / `hurtAndBreak()` and must not add a separate item-tag whitelist.
 - Right-click block-use priority is fixed: block placement, main-hand use, off-hand use, then a free-hand tool. If the off hand is empty, a main-hand `PASS` may run the fallback immediately and must record the hit position so the matching off-hand empty packet cannot run it again. If the off hand has an item, wait for its `useItemOn` to return `PASS` before falling back. GameTests verify that main-hand dirt placement and an off-hand shovel both take priority over an equipped free-hand shovel.
@@ -40,7 +41,6 @@
 - Mod ID：`freehands`
 - 主包名：`com.yourname.freehands`
 - 必需依赖：Curios
-- 可选依赖：Patchouli
 
 核心玩法是通过 Curios 增加两个 `free_hand` 解放槽。玩家可把原版工具、武器、护甲，以及本模组饰品装备到槽中，从而在不占用主副手的情况下获得对应功能。
 
@@ -62,7 +62,6 @@
 - 攻击附魔当前支持锋利类伤害、火焰附加和抢夺等级补足。
 - 原版护甲的护甲值和韧性由服务端 transient attribute modifier 累加；铁饰品通过 Curios 的属性接口直接提供护甲。所有提供护甲的解放槽物品受伤时扣耐久，并通过保护类附魔补充减伤。
 - 无耐久物品使用原版 `Unbreakable` 标记；`ItemStack.isDamageableItem()` 已会尊重该标记。
-- Patchouli 手册资源保留，但 `mods.toml` 中 Patchouli 是可选依赖。
 
 ## 能力实现规则
 
@@ -93,10 +92,10 @@
 - `src/main/java/com/yourname/freehands`：Java 源码。
 - `src/main/resources/META-INF/mods.toml`：Forge 模组元数据和依赖。
 - `src/main/resources/assets/freehands`：客户端资源、模型和本地化。
-- `src/main/resources/data/freehands`：配方、Curios 槽位数据和 Patchouli 手册数据。
+- `src/main/resources/data/freehands`：配方和 Curios 槽位数据。
 - `src/main/resources/data/curios/tags/items/free_hand.json`：Curios 槽位物品白名单。
 - `build.gradle`：ForgeGradle、仓库和依赖配置。
-- `gradle.properties`：Minecraft、Forge、模组元数据、Curios 和 Patchouli 版本。
+- `gradle.properties`：Minecraft、Forge、模组元数据和 Curios 版本。
 
 ## 常用命令
 
@@ -147,14 +146,6 @@ $env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 - `ultimineDoesNotCancelFreeHandRightClick` 与 `ultimineDoesNotCancelMainHandBlockPlacement` 通过 Forge 的真实右键事件验证：按住 Ultimine 时不允许取消解放槽或主手方块的原版右键包，随后由既有的解放槽回退逻辑处理工具右键。测试用静默网络连接只用于避免 GameTest 人工 `ServerPlayer` 缺失客户端连接，不能移入生产代码。
 - `ultimineDamagesFreeHandPickaxeForEveryBrokenBlock` 通过真实 Forge `BlockEvent.BREAK` 验证左键连锁：解放槽铁镐破坏两个相邻石头时，两个方块均被破坏、工具恰好损耗两点耐久，且物理主手保持为空。Ultimine 会自行递归破坏并取消最外层 `destroyBlock` 调用，因此测试应断言最终方块状态和耐久，不应断言最外层返回值。
 
-Patchouli 在 Forge 开发运行环境中需要 Mixin refmap remapping。保留 Forge run 配置中的：
-
-```groovy
-property 'mixin.env.remapRefMap', 'true'
-property 'mixin.env.refMapRemappingFile', "${buildDir}/createSrgToMcp/output.srg"
-```
-
-删除这些配置可能导致安装 Patchouli 的 `runClient` 在 Mixin 阶段失败。
 
 ## 验证清单
 
@@ -173,4 +164,3 @@ property 'mixin.env.refMapRemappingFile', "${buildDir}/createSrgToMcp/output.srg
 - `freehands:iron_trinket` 可装备并提供铁级能力。
 - 主、副手为空时，解放槽中的锄、斧、锹或剪刀可右键方块并消耗自身耐久。
 - 方块放置、主手右键和副手右键必须优先于解放槽工具右键。
-- 无 Patchouli 时不阻止启动；有 Patchouli 时手册可读。
