@@ -73,7 +73,7 @@ $env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 .\gradlew.bat build --no-daemon --max-workers=1 --console=plain
 ```
 
-产物 `build/libs/freehands-0.1.0.jar`
+产物 `build/libs/freehands-forge-1.20.1-0.1.0.jar`
 
 启动客户端：
 
