@@ -1,5 +1,11 @@
 # Free Hands Agent Notes
 
+## Release Baseline
+
+- The GitHub default branch is `1.20.1`; it was renamed from `master` on 2026-07-20 while retaining the full commit history.
+- The first public GitHub Release is tag `1.20.1-0.1.0`, titled `Free Hands 0.1.0 for Minecraft Forge 1.20.1`.
+- Its published asset is `freehands-0.1.0.jar`, built from the verified release baseline. Before publishing a later release, run the full Forge GameTest suite and `build`, then record the exact tag, title, and asset name here.
+
 ## Art Pipeline Update
 
 - For `minecraft-art-router` 16x16 item textures generated with `gpt-image-2`, use the minimum valid square source `816x816` (`16x51`). Verify the returned source is exactly `816x816`; regenerate any other size before running grid-locked normalization.
