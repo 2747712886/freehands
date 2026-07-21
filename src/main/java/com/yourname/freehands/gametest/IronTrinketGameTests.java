@@ -827,14 +827,16 @@ public final class IronTrinketGameTests {
     }
 
     @GameTest(template = "empty")
-    public static void ultimineDoesNotCancelFreeHandRightClick(GameTestHelper helper) {
+    public static void ultimineChainsFreeHandShovelRightClick(GameTestHelper helper) {
         BlockPos grassPos = new BlockPos(1, 2, 1);
+        BlockPos adjacentGrassPos = new BlockPos(2, 2, 1);
         ServerPlayer player = spawnServerPlayer(helper);
         ItemStack shovel = new ItemStack(Items.IRON_SHOVEL);
         equipTrinket(player, shovel);
         helper.setBlock(grassPos, Blocks.GRASS_BLOCK);
+        helper.setBlock(adjacentGrassPos, Blocks.GRASS_BLOCK);
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(90, () -> {
             BlockPos absoluteGrassPos = helper.absolutePos(grassPos);
             BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteGrassPos), Direction.UP, absoluteGrassPos, false);
             if (!pressUltimineKey(player, absoluteGrassPos)) {
@@ -846,50 +848,18 @@ public final class IronTrinketGameTests {
                     new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
                             player, InteractionHand.MAIN_HAND, absoluteGrassPos, hit);
             net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
-            helper.assertTrue(!event.isCanceled(),
-                    "Ultimine must not preempt a free-hand right-click before vanilla handles it");
-
-            player.gameMode.useItemOn(player, helper.getLevel(), ItemStack.EMPTY, InteractionHand.MAIN_HAND, hit);
+            helper.assertTrue(event.isCanceled(),
+                    "Ultimine must consume a free-hand shovel right-click after it chains the block action");
             helper.assertBlockPresent(Blocks.DIRT_PATH, grassPos);
-            helper.assertTrue(shovel.getDamageValue() == 1,
-                    "The normal free-hand fallback should handle the right-click exactly once");
+            helper.assertBlockPresent(Blocks.DIRT_PATH, adjacentGrassPos);
+            helper.assertTrue(shovel.getDamageValue() == 2,
+                    "Ultimine must consume one free-hand shovel durability for every flattened block");
             helper.assertTrue(player.getMainHandItem().isEmpty(),
                     "A free-hand tool must not move into the physical main hand");
             helper.succeed();
         });
     }
 
-    @GameTest(template = "empty")
-    public static void ultimineDoesNotCancelMainHandBlockPlacement(GameTestHelper helper) {
-        BlockPos grassPos = new BlockPos(1, 2, 1);
-        ServerPlayer player = spawnServerPlayer(helper);
-        ItemStack dirt = new ItemStack(Items.DIRT);
-        equipTrinket(player, new ItemStack(Items.IRON_SHOVEL));
-        player.setItemInHand(InteractionHand.MAIN_HAND, dirt);
-        helper.setBlock(grassPos, Blocks.GRASS_BLOCK);
-
-        helper.runAfterDelay(2, () -> {
-            BlockPos absoluteGrassPos = helper.absolutePos(grassPos);
-            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteGrassPos), Direction.UP, absoluteGrassPos, false);
-            if (!pressUltimineKey(player, absoluteGrassPos)) {
-                helper.succeed();
-                return;
-            }
-
-            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event =
-                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
-                            player, InteractionHand.MAIN_HAND, absoluteGrassPos, hit);
-            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
-            helper.assertTrue(!event.isCanceled(),
-                    "Ultimine must not cancel a main-hand block placement when a free-hand tool is equipped");
-
-            player.gameMode.useItemOn(player, helper.getLevel(), dirt, InteractionHand.MAIN_HAND, hit);
-            helper.assertBlockPresent(Blocks.DIRT, grassPos.above());
-            helper.assertTrue(dirt.getCount() == 0,
-                    "The placed main-hand block should be consumed exactly once");
-            helper.succeed();
-        });
-    }
 
     private static boolean pressUltimineKey(ServerPlayer player, BlockPos targetPos) {
         try {

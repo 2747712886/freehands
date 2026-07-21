@@ -31,9 +31,12 @@ import net.minecraftforge.event.entity.player.PlayerEvent;
 import net.minecraftforge.eventbus.api.SubscribeEvent;
 import net.minecraftforge.fml.common.Mod;
 import top.theillusivec4.curios.api.CuriosApi;
+import top.theillusivec4.curios.api.type.ISlotType;
+import top.theillusivec4.curios.api.type.inventory.ICurioStacksHandler;
 import top.theillusivec4.curios.api.type.inventory.IDynamicStackHandler;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -181,6 +184,44 @@ public final class FreeHandEvents {
                 .toList();
     }
 
+    public static List<ItemStack> ultimineUseStacks(Player player) {
+        List<ItemStack> result = freeHandUseStacks(player).stream()
+                .sorted(Comparator.comparingInt(FreeHandEvents::rightClickPriority))
+                .collect(java.util.stream.Collectors.toList());
+        CuriosApi.getCuriosInventory(player).resolve().ifPresent(handler -> handler.getCurios().entrySet().stream()
+                .filter(entry -> !entry.getKey().equals(FreeHands.FREE_HAND_SLOT))
+                .sorted(Comparator.<Map.Entry<String, ICurioStacksHandler>>comparingInt(entry ->
+                        CuriosApi.getSlot(entry.getKey(), player.level())
+                                .map(ISlotType::getOrder)
+                                .orElse(Integer.MAX_VALUE))
+                        .thenComparing(Map.Entry::getKey))
+                .forEach(entry -> {
+                    IDynamicStackHandler stacks = entry.getValue().getStacks();
+                    for (int slot = 0; slot < stacks.getSlots(); slot++) {
+                        ItemStack stack = stacks.getStackInSlot(slot);
+                        if (!stack.isEmpty()
+                                && canUseOnBlock(stack)
+                                && CuriosApi.getItemStackSlots(stack, player).containsKey(entry.getKey())) {
+                            result.add(stack);
+                        }
+                    }
+                }));
+        return result;
+    }
+
+
+    private static int rightClickPriority(ItemStack stack) {
+        if (stack.canPerformAction(net.minecraftforge.common.ToolActions.SHOVEL_FLATTEN)) {
+            return 0;
+        }
+        if (stack.canPerformAction(net.minecraftforge.common.ToolActions.AXE_STRIP)) {
+            return 1;
+        }
+        if (stack.canPerformAction(net.minecraftforge.common.ToolActions.HOE_TILL)) {
+            return 2;
+        }
+        return 3;
+    }
     private static Optional<FreeHandStack> bestMiningStack(Player player, BlockState state) {
         FreeHandStack bestStack = null;
         float bestSpeed = 0.0F;

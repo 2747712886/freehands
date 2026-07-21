@@ -89,15 +89,15 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
         }
 
         Player player = context.getPlayer();
-        InteractionResult axeResult = modifyBlock(context, state, ToolActions.AXE_STRIP, SoundEvents.AXE_STRIP, 0, false);
+        InteractionResult axeResult = tryAxeStrip(context, state);
         if (axeResult != InteractionResult.PASS) {
             return axeResult;
         }
-        axeResult = modifyBlock(context, state, ToolActions.AXE_SCRAPE, SoundEvents.AXE_SCRAPE, 3005, false);
+        axeResult = tryAxeScrape(context, state);
         if (axeResult != InteractionResult.PASS) {
             return axeResult;
         }
-        axeResult = modifyBlock(context, state, ToolActions.AXE_WAX_OFF, SoundEvents.AXE_WAX_OFF, 3004, false);
+        axeResult = tryAxeWaxOff(context, state);
         if (axeResult != InteractionResult.PASS) {
             return axeResult;
         }
@@ -120,6 +120,48 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
         if (state.getBlock() instanceof GrowingPlantHeadBlock growingPlant && !growingPlant.isMaxAge(state)) {
             level.playSound(player, pos, SoundEvents.GROWING_PLANT_CROP, SoundSource.BLOCKS, 1.0F, 1.0F);
             return applyModifiedState(context, growingPlant.getMaxAgeState(state));
+        }
+        return InteractionResult.PASS;
+    }
+
+    @SuppressWarnings("unchecked")
+    private InteractionResult tryAxeStrip(UseOnContext context, BlockState state) {
+        try {
+            java.lang.reflect.Field field = net.minecraft.world.item.AxeItem.class.getDeclaredField("STRIPPABLES");
+            field.setAccessible(true);
+            java.util.Map<net.minecraft.world.level.block.Block, net.minecraft.world.level.block.Block> strippables =
+                    (java.util.Map<net.minecraft.world.level.block.Block, net.minecraft.world.level.block.Block>) field.get(null);
+            net.minecraft.world.level.block.Block stripped = strippables.get(state.getBlock());
+            if (stripped != null) {
+                return applyModifiedState(context, stripped.defaultBlockState());
+            }
+        } catch (Exception ignored) {
+        }
+        return InteractionResult.PASS;
+    }
+
+    @SuppressWarnings("unchecked")
+    private InteractionResult tryAxeScrape(UseOnContext context, BlockState state) {
+        java.util.Optional<BlockState> previous = net.minecraft.world.level.block.WeatheringCopper.getPrevious(state);
+        if (previous.isPresent()) {
+            return applyModifiedState(context, previous.get());
+        }
+        return InteractionResult.PASS;
+    }
+
+    @SuppressWarnings("unchecked")
+    private InteractionResult tryAxeWaxOff(UseOnContext context, BlockState state) {
+        try {
+            java.lang.reflect.Field field = net.minecraft.world.item.HoneycombItem.class.getDeclaredField("WAXABLES");
+            field.setAccessible(true);
+            java.util.function.Supplier<com.google.common.collect.BiMap<net.minecraft.world.level.block.Block, net.minecraft.world.level.block.Block>> supplier =
+                    (java.util.function.Supplier<com.google.common.collect.BiMap<net.minecraft.world.level.block.Block, net.minecraft.world.level.block.Block>>) field.get(null);
+            com.google.common.collect.BiMap<net.minecraft.world.level.block.Block, net.minecraft.world.level.block.Block> waxables = supplier.get();
+            net.minecraft.world.level.block.Block unwaxed = waxables.inverse().get(state.getBlock());
+            if (unwaxed != null) {
+                return applyModifiedState(context, unwaxed.defaultBlockState());
+            }
+        } catch (Exception ignored) {
         }
         return InteractionResult.PASS;
     }
@@ -156,7 +198,6 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
     public boolean canPerformAction(ItemStack stack, ToolAction toolAction) {
         return ToolActions.DEFAULT_PICKAXE_ACTIONS.contains(toolAction)
                 || ToolActions.DEFAULT_SHOVEL_ACTIONS.contains(toolAction)
-                || ToolActions.DEFAULT_AXE_ACTIONS.contains(toolAction)
                 || toolAction == ToolActions.SHEARS_CARVE;
     }
 
