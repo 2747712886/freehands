@@ -1,172 +1,132 @@
 # Free Hands Agent Notes
 
-## Release Baseline
+## 仓库与发布
 
-- The GitHub default branch is `1.20.1`; it was renamed from `master` on 2026-07-20 while retaining the full commit history.
-- The first public GitHub Release is tag `1.20.1-0.1.0`, titled `Free Hands 0.1.0 for Minecraft Forge 1.20.1`.
-- Its published asset is `freehands-forge-1.20.1-0.1.0.jar`, built from the verified release baseline. Before publishing a later release, run the full Forge GameTest suite and `build`, then record the exact tag, title, and asset name here.
+- 默认分支 `1.20.1`（2026-07-20 由 `master` 改名，保留完整历史）。
+- 本仓库在**多台电脑间同步开发**（如 `E:\mod\freehands`、`D:\mod\freehands`），盘符因人而异，文档一律用相对路径、不写死。
+- 首个公开 Release：tag `1.20.1-0.1.0`，标题 `Free Hands 0.1.0 for Minecraft Forge 1.20.1`，产物 `freehands-forge-1.20.1-0.1.0.jar`。后续发布前先跑完整 GameTest 与 `build`，并把确切 tag/标题/产物名记录在此。
 
-## Art Pipeline Update
+## 美术管线
 
-- For `minecraft-art-router` 16x16 item textures generated with `gpt-image-2`, use the minimum valid square source `816x816` (`16x51`). Verify the returned source is exactly `816x816`; regenerate any other size before running grid-locked normalization.
-- Reusable trinket image prompts and acceptance criteria are in `docs/ai-image-prompts.md`. Keep credentials out of project documentation and generate material variants from an approved iron master whenever possible.
-- `freehands:iron_trinket`, `freehands:diamond_trinket`, and `freehands:netherite_trinket` use transparent 16x16 centered amulet textures. Keep the shared symmetric octagonal silhouette, one-pixel transparent edge, and no more than 16 opaque colors; use layered iron gray, steel-blue with a cyan core, and dark purple-gray with a muted wine core respectively.
-- Iron, diamond, and netherite trinkets have 2048, 4096, and 8192 durability. Iron and diamond use the nine-slot recipe of four same-tier armor pieces, four same-tier tools/weapons, and a same-tier material block; netherite upgrades a diamond trinket in a smithing table with a Netherite Upgrade Smithing Template and a netherite block.
-- Development client test mods: JEI `15.20.0.133`, IMBlocker `4.0.5`, and JustEnoughCharacters `4.6.7`. `downloadDevelopmentClientMods` fetches verified Forge JARs into `run/dev-mods`; the local flatDir repository exposes them to `runtimeOnly fg.deobf(...)` for userdev remapping. Do not add them as published-mod dependencies.
+- `minecraft-art-router` 生成 16x16 贴图：源图必须**正好 `816x816`**（16x51），否则重新生成；再以 `normalize_item_texture.py --grid-locked` 输出合规透明 PNG。凭证不入项目文档；材料变体尽量由已批准的 iron master 生成。可复用提示词与验收标准见 `docs/ai-image-prompts.md`。
+- 三个饰品贴图 `freehands:{iron,diamond,netherite}_trinket`：透明 16x16 居中护身符，对称八角轮廓、单像素透明边、≤16 不透明色；铁灰 / 钢蓝带青色核心 / 暗紫灰带酒红核心。耐久 2048/4096/8192。
+- 铁/钻九格配方：四同阶护甲 + 四同阶工具/武器 + 同阶材料块；下界合金 = 锻造台 + 升级模板 + 下界合金块升级钻石饰品。
 
-## Automated Regression Tests
+## 开发测试模组（run/dev-mods）
 
-- `IronTrinketGameTests` is the Forge GameTest suite for the trinket tiers. It verifies full iron armor, diamond armor/toughness, netherite armor/toughness/knockback resistance, fixed explosion damage matching a full iron set, Blast Protection IV behavior, and player-owned TNT behavior.
-- It also verifies that an iron trinket harvests stone with a cobblestone drop and loses one durability during mining. During virtual-main-hand `destroyBlock` processing, the harvest check must inspect the equipped stack directly because the selection rule sees the already-virtual stack; outside that context, retain main-hand priority.
-- It verifies that an empty main hand can right-click a grass block with a free-hand shovel, producing a dirt path and consuming one durability. `UseOnContext` reads `getItemInHand(MAIN_HAND)`, so virtual-main-hand support must cover both `getMainHandItem` and `getItemInHand` during `ServerPlayerGameMode.useItemOn`.
-- `ironTrinketCanFlattenGrassBlockWithRightClick`, `ironTrinketCanStripOakLogWithRightClick`, `ironTrinketCanTillDirtPathWithRightClick`, `ironTrinketCanCarvePumpkinWithRightClick`, `ironTrinketCanScrapeCopperWithRightClick`, `ironTrinketCanRemoveCopperWaxWithRightClick`, and `ironTrinketCanMatureGrowingVinesWithRightClick` verify the ability trinket's multi-tool block actions. It supports shovel flattening/campfire dousing, axe stripping/scraping/wax removal, pumpkin carving, and growing-plant maturation. Its block-action order is axe then shovel. Hoe tilling is not supported since the recipe does not include a hoe. Every successful action costs one durability and broadcasts a main-hand swing.
-- `freeHandRightClickSendsSoundToActingPlayer` registers an embedded test player and verifies that a successful free-hand shovel right-click sends exactly one `ClientboundSoundPacket` to the acting player. Vanilla server sound calls exclude the actor because a physical hand normally predicts the sound locally; during `VirtualMainHandContext.isUsing`, the `Level.playSound` mixin must clear that exclusion so virtual tools and ability trinkets have audible feedback. Do not apply this behavior to mining contexts.
-- `freeHandHoeCanTillDirtWithRightClick`, `freeHandAxeCanStripOakLogWithRightClick`, and `freeHandShearsCanCarvePumpkinWithRightClick` verify that each regular tool works when it is the only item in a free-hand slot. `ironTrinketDoesNotOverrideSlotOrderWhileSneaking` verifies the first-slot trinket still flattens dirt before a later hoe, including while sneaking.
-- `unbreakableFreeHandToolDoesNotLoseDurability` equips an iron shovel with the vanilla `Unbreakable` NBT flag, flattens a grass block, and asserts that its damage remains zero. Durability code must use `ItemStack.isDamageableItem()` / `hurtAndBreak()` and must not add a separate item-tag whitelist.
-- Right-click block-use priority is fixed: block placement, main-hand use, off-hand use, then a free-hand tool. If the off hand is empty, a main-hand `PASS` may run the fallback immediately and must record the hit position so the matching off-hand empty packet cannot run it again. If the off hand has an item, wait for its `useItemOn` to return `PASS` before falling back. GameTests verify that main-hand dirt placement and an off-hand shovel both take priority over an equipped free-hand shovel.
-- `freeHandToolFiresWhenMainHandItemReturnsPASS` verifies that a main-hand tool that returns `PASS` (e.g. a shovel on a dirt path) falls through to free-hand tools (a hoe tills the path). `freeHandUseStacks` no longer checks main-hand emptiness; the vanilla `useItemOn` result already determines whether fallback should run.
-- After both hands return `PASS`, free-hand block use tries compatible stacks in `free_hand` slot order. Each candidate runs the full `ServerPlayerGameMode.useItemOn` flow; only `PASS` advances to the next slot, and every non-`PASS` result stops the traversal. The next player right-click starts a new traversal from the first slot. GameTests cover pickaxe-to-shovel fallback, shovel-to-hoe fallback on a dirt path, stopping after a successful first-slot shovel, and a second click that continues from a dirt path to farmland.
-- `freeHandToolRunsOnlyOnceAcrossHandPackets` simulates the main-hand and off-hand packets sent for one unhandled block click. A free-hand Iron Trinket must flatten dirt once, leaving a dirt path and consuming exactly one durability; it must not use its hoe action again from the off-hand packet. `freeHandToolHandlesMainHandPacketWhenOffHandIsEmpty` verifies that a lone main-hand packet still runs an equipped free-hand tool when the off hand is empty.
-- When a free-hand tool's `useOn` returns non-`PASS` (block was modified), the mixin unconditionally swings `MAIN_HAND` and returns `CONSUME` to prevent `handleUseItemOn` from swinging the wrong hand. Vanilla's `sidedSuccess(false)` maps to `CONSUME` whose `shouldSwing()` is `false`, so a `shouldSwing()`-based guard would never trigger. `AbilityTrinketItem.applyModifiedState` must not swing itself; the mixin owns the swing for all free-hand tools.
-- `ironTrinketOnGrassDropsSeedsNotGrassBlock` and `shearsInFreeHandOnGrassDropsGrassBlock` verify that plant/foliage drops respect the tool in the virtual main hand. Shears produce shears-appropriate drops, and the Iron Trinket must not interfere with blocks that do not require a correct tool.
-- `ironTrinketOnLeavesDoesNotDropLeavesBlock` confirms the trinket does not produce shears-type drops for leaves. `canPerformAction` must not include `DEFAULT_SHEARS_ACTIONS` except `SHEARS_CARVE`, or Forge's leaves drop path will treat the trinket as shears.
-- `ironTrinketCanBeEnchanted` verifies that the Iron Trinket accepts Efficiency and Protection enchantments, and that its `getEnchantmentValue()` returns a positive tier-appropriate value.
-- Run it with `$env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'; .\gradlew.bat runGameTestServer --no-daemon --max-workers=1 --console=plain`.
-- Minecraft 1.20.1 loads GameTest SNBT fixtures from the run directory. Keep the source fixture at `src/gametest/resources/gameteststructures/empty.snbt`; `copyGameTestStructures` stages it before `prepareRunGameTestServer`.
-- `runGameTestServer` must not load the client-only development test mods. The Gradle dependency guard excludes them only for that task; normal `runClient` continues to load JEI, IMBlocker, and JustEnoughCharacters.
-- Extra free-hand attack damage applies only when the direct damage entity is the player. Never use the owner entity alone: player-owned TNT, projectiles, and other indirect damage must not be treated as a melee attack.
+- `downloadDevelopmentClientMods` 把六个客户端测试模组下载到 `run/dev-mods`，经本地 flatDir 仓库以 `runtimeOnly fg.deobf(...)` 暴露。**只做本地验证，绝不进发布产物**。
+- JEI `15.20.0.133`、IMBlocker `4.0.5`、JustEnoughCharacters `4.6.7`。
+- FTB Ultimine 三件套：`architectury-9.2.14-forge.jar`、`ftb-library-forge-2001.2.12.jar`、`ftb-ultimine-forge-2001.1.8.jar`（后两个走 CurseForge CDN，sha1 与社区 packwiz 清单核对一致）。
+- 依赖守卫：六个 devmods 均**仅当对应 jar 存在于 `run/dev-mods` 时才声明**（自动检测）。任何解析不了的 `fg.deobf` 依赖会毒化共享的 `:__obfuscated` 管线、让 Curios 连带失败——缺 jar 必须"跳过声明"而非报错。恢复 JEI/IMBlocker 只需跑一次 `downloadDevelopmentClientMods`。
+
+## 回归测试要点
+
+- `IronTrinketGameTests`（Forge GameTest）：铁/钻/下界合金整套防御、爆炸伤害（铁套基线）、爆炸保护 IV、玩家 TNT 行为。
+- 挖掘：虚拟主手 `destroyBlock` 期间的采集检查**直接读已装备栈**（选择规则此刻看到的已是虚拟栈）；该上下文外保持主手优先。空主手 + 解放槽锹可右击草方块→土径、扣 1 耐久。
+- 右键：优先级固定 放置→主手→副手→解放槽（槽序）。`UseOnContext` 读 `getItemInHand(MAIN_HAND)`，虚拟主手须同时覆盖 `getMainHandItem` 与 `getItemInHand`。副手空时主手 `PASS` 可立即回退，但必须记录命中位置跳过同次副手空包；副手有物品时等其 `PASS`。只有 `PASS` 进下一槽，非 `PASS` 即停；下个右键从首槽重来。
+- 能力饰品多工具右键：锹铲平/熄营火、斧去皮/刮锈/去蜡、剪南瓜(pumpkin carving)/成熟藤蔓（测试 `ironTrinketCanFlatten/Strip/Till/Carve/Scrape/Wax/Mature*`）；**固定斧→锹顺序**（配方无锄，不支持锄地）；每次成功扣 1 耐久并广播主手摆臂。普通工具单放槽中亦可（锹→土径、斧→剥原木、剪→雕南瓜）。
+- 一物理右键只执行一次：主手+副手两个空包不重复触发（`freeHandToolRunsOnlyOnceAcrossHandPackets`）；副手空时单主手包也触发（`...HandlesMainHandPacketWhenOffHandIsEmpty`）。
+- 成功执行：无条件摆动 `MAIN_HAND` + 返回 `CONSUME`（原版 `sidedSuccess(false)` 映射为 `CONSUME` 且 `shouldSwing()==false`，不能靠 shouldSwing 判断）；`AbilityTrinketItem.applyModifiedState` 不自摆臂，mixin 统一负责。
+- 声音：仅 `VirtualMainHandContext.isUsing` 期间，`Level.playSound` mixin 清除"排除发声者"，否则虚拟工具无声（`freeHandRightClickSendsSoundToActingPlayer` 验证恰好一个包）；**勿用于挖掘上下文**。
+- 耐久：用 `isDamageableItem()`/`hurtAndBreak()`，尊重原版 `Unbreakable`，无自定义白名单（`unbreakableFreeHandToolDoesNotLoseDurability`）。
+- 掉落：植物/树叶按虚拟主手工具结算（剪刀→草方块、饰品→种子）；饰品不接管不需正确工具的方块（`ironTrinketOnGrassDropsSeedsNotGrassBlock` 等）。
+- 树叶：饰品不得产生剪刀类掉落；`canPerformAction` **不得含 `DEFAULT_SHEARS_ACTIONS`**（除 `SHEARS_CARVE`），否则树叶被当剪刀。
+- 附魔：`ironTrinketCanBeEnchanted` 接受效率/保护，`getEnchantmentValue()` 为正。
+- 攻击：解放槽最高武器叠伤，仅当**直接伤害实体是玩家**（玩家 TNT/抛射物等间接伤害不算近战）；继承暴击倍率，只扣参与叠伤的武器耐久。
+- 运行：`runGameTestServer` 从 run 目录读 SNBT 夹具：源 `src/gametest/resources/gameteststructures/empty.snbt`，`copyGameTestStructures` 在 `prepareRunGameTestServer` 前 staging。
 
 ## 项目概览
 
-本仓库是 `解放双手 / Free Hands` Minecraft Forge 模组。
+本仓库是 `解放双手 / Free Hands` Minecraft Forge 模组：通过 Curios 增加两个 `free_hand` 解放槽，玩家把原版工具/武器/护甲及本模组饰品放入后，不占主副手即获对应功能。
 
-- 当前开发路径：`E:\mod\freehands`
-- 项目路径：`E:\mod\freehands`
-- Minecraft：`1.20.1`
-- Forge：`47.4.10`
-- Mod ID：`freehands`
-- 主包名：`com.yourname.freehands`
-- 必需依赖：Curios
-
-核心玩法是通过 Curios 增加两个 `free_hand` 解放槽。玩家可把原版工具、武器、护甲，以及本模组饰品装备到槽中，从而在不占用主副手的情况下获得对应功能。
+- Minecraft `1.20.1` · Forge `47.4.10` · Mod ID `freehands` · 主包 `com.yourname.freehands` · 必需依赖 Curios。
 
 ## 个人工具
 
-- `minecraft-art-router` 位于 `C:\Users\a2747\.codex\skills\minecraft-art-router`，用于路由 Minecraft 美术资源请求。当前支持物品贴图：通过 `imagegen` 生成严格 `16x16` 网格比例的概念稿，再用其 `normalize_item_texture.py --grid-locked` 脚本输出合规的透明 PNG 和最近邻预览。
-- `freehands:iron_trinket` 使用自有 `assets/freehands/textures/item/iron_trinket.png`：透明 `16x16` 居中轨道铁芯贴图，锻造核心和四个对称轨道节点表达工具、武器与护甲能力，物品模型引用 `freehands:item/iron_trinket`。
+- `minecraft-art-router` 位于 `C:\Users\a2747\.codex\skills\minecraft-art-router`（本机个人工具）：`imagegen` 生成严格 16x16 网格概念稿 → `normalize_item_texture.py --grid-locked` 输出透明 PNG 与最近邻预览。
+- `freehands:iron_trinket` 自有贴图 `assets/freehands/textures/item/iron_trinket.png`：透明 16x16 居中轨道铁芯，锻造核心 + 四对称轨道节点，模型引用 `freehands:item/iron_trinket`。
 
 ## 当前实现
 
-- 注册 `freehands:iron_trinket`、`freehands:diamond_trinket` 和 `freehands:netherite_trinket`，中文名分别为“铁饰品”“钻石饰品”“下界合金饰品”。
-- 注册 Curios 槽位 `free_hand`，槽位大小为 `2`。
-- 使用 `data/curios/tags/items/free_hand.json` 限制可放入槽位的物品。
-- 支持原版工具、武器、护甲和铁饰品进入解放槽。
-- 挖掘能力从两个解放槽中选择最适合当前方块的工具或饰品能力。
-- 当主手对目标方块没有速度加成时，解放槽中最适合的工具会作为虚拟主手参与完整原版破坏流程。真实主手物品栏不变，但工具回调、掉落附魔和耐久都读取解放槽工具。
-- 主、副手均未处理右键方块操作时，解放槽中的锄、斧、锹、剪刀或能力饰品可作为最后回退执行受支持的右键方块行为并消耗自身耐久。能力饰品支持铁锹铲平/熄灭营火、斧头去皮/刮锈/去蜡、剪刀雕刻南瓜/修剪生长藤蔓（设为最大年龄并停止继续生长），并在成功时摆动主手；能力饰品固定按斧头、铁锹顺序尝试（合成表不含锄头，不支持锄地），不受潜行影响。
-- 攻击时从两个解放槽中选择最高攻击伤害叠加到本次伤害，并对对应武器或工具扣耐久。
-- 攻击附魔当前支持锋利类伤害、火焰附加和抢夺等级补足。
-- 原版护甲的护甲值和韧性由服务端 transient attribute modifier 累加；铁饰品通过 Curios 的属性接口直接提供护甲。所有提供护甲的解放槽物品受伤时扣耐久，并通过保护类附魔补充减伤。
-- 无耐久物品使用原版 `Unbreakable` 标记；`ItemStack.isDamageableItem()` 已会尊重该标记。
+- 注册 `freehands:iron_trinket`、`freehands:diamond_trinket`、`freehands:netherite_trinket`（中文名"铁/钻石/下界合金饰品"）；`free_hand` Curios 槽位（大小 2）；`data/curios/tags/items/free_hand.json` 白名单。原版工具/武器/护甲及饰品均可放入。
+- 挖掘：两解放槽中选最适合当前方块的工具/饰品能力；主手无速度加成时，选中工具作为虚拟主手参与完整原版破坏流程，真实主手物品栏不变，回调/掉落附魔/耐久都读解放槽工具。
+- 右键：主、副手均未处理时，解放槽锹/斧/锄/剪刀或能力饰品作为最后回退执行受支持行为并耗自身耐久（能力饰品支持铲平/熄营火、去皮/刮锈/去蜡、雕南瓜/成熟藤蔓，固定斧→锹顺序，不受潜行影响，成功摆主手）。
+- 攻击：解放槽最高攻击值叠加到本次伤害并对该武器/工具扣耐久；显式支持锋利类伤害、火焰附加、抢夺等级。
+- 防御：原版护甲护甲值/韧性由服务端 transient attribute modifier 累加；饰品经 Curios 属性接口直接提供护甲；受伤扣耐久 + 保护类附魔补充减伤。
+- 无耐久物品用原版 `Unbreakable` 标记；`ItemStack.isDamageableItem()` 已尊重该标记。
 
 ## 能力实现规则
 
-- 挖掘优先级：主手对目标方块的挖掘速度大于基础速度时，始终优先主手；否则使用解放槽中最适合的工具。
-- 挖掘实现：`FreeHandEvents` 通过采集检查和破坏速度事件选择解放槽工具；Mixin 会在 `ServerPlayerGameMode.destroyBlock` 的范围内将其暴露为虚拟主手。不要写入或交换真实主手物品栏。时运、精准采集、效率、工具回调和耐久都应走原版流程。
-- 右键实现：方块放置、主手右键和副手右键必须优先于解放槽工具。副手为空时，主手 `useItemOn` 返回 `PASS` 可立即回退到解放槽，但必须记录命中位置并跳过同次副手空包，避免重复执行工具；副手有物品时，只有副手 `useItemOn` 返回 `PASS` 后才可按槽位顺序尝试解放槽物品。只有某槽返回 `PASS` 才继续下一槽，任何非 `PASS` 结果均停止本次遍历。下一次玩家右键重新从首槽开始。`UseOnContext` 读取 `getItemInHand(MAIN_HAND)`，虚拟主手必须覆盖该访问器。
-- 解放槽工具执行右键成功时，无条件摆动 `MAIN_HAND` 并返回 `CONSUME`，防止 `handleUseItemOn` 根据发包的手（`OFF_HAND`）摆动空手。原因是原版服务端 `sidedSuccess(false)` 实际映射为 `CONSUME`，其 `shouldSwing()` 为 `false`，因此不能依赖 `shouldSwing()` 判断。`AbilityTrinketItem.applyModifiedState` 不允许自行摆臂，统一由 mixin 处理。
-- Curios 读取：不要使用已弃用的 `findCurios(LivingEntity, String...)`；读取 `free_hand` 槽时使用 `CuriosApi.getCuriosInventory(player)`、`getStacksHandler(FreeHands.FREE_HAND_SLOT)` 和 `IDynamicStackHandler`。
-- 攻击逻辑：解放槽最高攻击值作为额外伤害叠加，不替换主手伤害；实际参与叠加的槽内武器或工具需要扣耐久。
-- 攻击附魔：攻击时只选择伤害最高的解放槽物品；当前显式补充锋利类伤害、火焰附加和该物品的抢夺等级，额外伤害继承暴击倍率。其他特殊攻击附魔不要默认认为已完整兼容。
-- 防御逻辑：原版护甲通过 transient attribute modifier 提供属性；能力饰品必须在 `ICurioItem#getAttributeModifiers` 中提供自身护甲，不能重复计入 transient 汇总。保护类附魔和所有提供护甲物品的耐久在受伤事件中补充处理。
-- 植物/树叶掉落：canStackHarvest 对剪刀始终返回 	rue（掉落由战利品表决定）；canHarvestWithAbility 对不需要正确工具的方块返回 alse，避免能力饰品错误接管。
-- 无耐久扩展：使用原版 `Unbreakable` 标记，不要重新引入自定义耐久白名单。
+- 挖掘优先级：主手对目标方块速度加成 > 基础时始终主手；否则用解放槽最优工具。实现：`FreeHandEvents` 经采集检查/破坏速度事件选工具，Mixin 在 `ServerPlayerGameMode.destroyBlock` 内暴露为虚拟主手；不写/不换真实主手物品栏，时运/精准/效率/工具回调/耐久全走原版。
+- 右键实现：放置、主手、副手优先于解放槽。副手空时主手 `PASS` 可立即回退但须记录命中位置并跳过同次副手空包；副手有物品时等其 `PASS` 后才按槽序尝试。只有 `PASS` 进下一槽，任何非 `PASS` 停止遍历；下次右键从首槽重来。`UseOnContext` 读 `getItemInHand(MAIN_HAND)`，虚拟主手必须覆盖该访问器。
+- 右键成功：无条件摆动 `MAIN_HAND` 并返回 `CONSUME`，防止 `handleUseItemOn` 按发包的手摆空手（原版 `sidedSuccess(false)` 映射为 `CONSUME`、`shouldSwing()==false`，不能靠 shouldSwing 判断）。`AbilityTrinketItem.applyModifiedState` 不自摆臂，mixin 统一处理。
+- Curios 读取：**不用已弃用的 `findCurios(LivingEntity, String...)`**；用 `CuriosApi.getCuriosInventory(player)` + `getStacksHandler(FreeHands.FREE_HAND_SLOT)` + `IDynamicStackHandler`。
+- 攻击逻辑：解放槽最高攻击值作为额外伤害叠加，不替换主手伤害；只扣实际参与叠伤的槽内武器/工具耐久。只选伤害最高者；显式补充锋利类伤害、火焰附加、该物品抢夺等级，额外伤害继承暴击倍率；其他特殊攻击附魔不默认兼容。
+- 防御逻辑：原版护甲经 transient attribute modifier 提供属性；能力饰品必须在 `ICurioItem#getAttributeModifiers` 自供护甲，**不得重复计入 transient 汇总**；保护类附魔与护甲耐久在受伤事件补充处理。
+- 植物/树叶：`canStackHarvest` 对剪刀恒 true（掉落交给战利品表）；`canHarvestWithAbility` 对不需正确工具的方块返回 false，避免能力饰品错误接管。
+- 无耐久：只用原版 `Unbreakable`，不建自定义耐久白名单。
 
 ## 已取消方向
 
-不要继续按旧 `Core Trinkets/coretrinkets` 设计扩展：
-
-- 不做核心升级主线。
-- 不做特殊合成升级系统。
-- 不做核心附魔扩展。
-- 不做自定义能量单位。
-- 不做 FE、Mana、AE 等能量兼容层。
-- 不再使用 `iron_core`、`core` 槽或 `coretrinkets` 资源命名。
+不按旧 `Core Trinkets/coretrinkets` 扩展：不做核心升级主线 / 特殊合成升级系统 / 核心附魔扩展 / 自定义能量单位 / FE、Mana、AE 等能量兼容层；不再用 `iron_core`、`core` 槽或 `coretrinkets` 命名。
 
 ## 项目结构
 
 - `src/main/java/com/yourname/freehands`：Java 源码。
-- `src/main/resources/META-INF/mods.toml`：Forge 模组元数据和依赖。
-- `src/main/resources/assets/freehands`：客户端资源、模型和本地化。
-- `src/main/resources/data/freehands`：配方和 Curios 槽位数据。
-- `src/main/resources/data/curios/tags/items/free_hand.json`：Curios 槽位物品白名单。
-- `build.gradle`：ForgeGradle、仓库和依赖配置。
-- `gradle.properties`：Minecraft、Forge、模组元数据和 Curios 版本。
+- `src/main/resources/META-INF/mods.toml`：模组元数据与依赖。
+- `src/main/resources/assets/freehands`：客户端资源、模型、本地化。
+- `src/main/resources/data/freehands`：配方与 Curios 槽位数据。
+- `src/main/resources/data/curios/tags/items/free_hand.json`：槽位物品白名单。
+- `build.gradle` / `gradle.properties`：ForgeGradle、仓库、依赖、模组元数据。
 
 ## 常用命令
 
-命令从当前项目目录 `E:\mod\freehands` 运行。
+从项目根目录运行（`GRADLE_USER_HOME` 因机器而异，按本机缓存目录设置）。
 
 构建：
 
 ```powershell
-$env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 .\gradlew.bat build --no-daemon --max-workers=1 --console=plain
 ```
 
 启动客户端：
 
 ```powershell
-$env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 .\gradlew.bat runClient
 ```
 
 生成 IntelliJ 运行配置：
 
 ```powershell
-$env:GRADLE_USER_HOME='E:\mod\.gradle-user-home'
 .\gradlew.bat genIntellijRuns
 ```
 
+构建环境：Gradle wrapper 当前 `8.14.5`（官方源），基线 `8.8`（腾讯镜像）。勿在文档写死 `GRADLE_USER_HOME` 具体路径。
+
 ## 开发约束
 
-- 任何文件操作先确认目标路径，尤其是删除、移动、重命名。
-- 不要使用 `Remove-Item` 对数组、通配符或目录递归执行删除。
-- 如果需要清理多个文件，必须逐个文件单独执行。
-- 复杂任务使用 todo list。
-- Markdown 文件必须保持 UTF-8，避免中文乱码。
-- Git 提交信息、推送说明和相关沟通必须使用中文。
-- 不要把其他模组项目直接混进当前项目；多个模组应放在 `E:\mod` 下的独立子目录。
-- 不要删除 `E:\mod` 根目录文件，除非用户明确要求。
-- 不要重新引入旧 `coretrinkets` 命名。
-
-## 运行时注意
+- 文件操作先确认目标路径，尤其删除/移动/重命名；不用 `Remove-Item` 对数组、通配符或目录递归删除；多文件逐个清理。
+- 复杂任务用 todo list；Markdown 保持 UTF-8；Git 提交信息、推送说明和相关沟通用中文。
+- 不要把其他模组混进本项目；多个模组放在仓库父目录下各自独立子目录；不要删除仓库根目录外的无关文件，除非用户明确要求。
+- 不重新引入旧 `coretrinkets` 命名。
 
 ## Ultimine 兼容测试
 
-- FTB Ultimine `2001.1.8`（Minecraft `1.20.1` / Forge）依赖 Architectury `>= 9.2.14` 与 FTB Library `>= 2001.2.1`。开发测试使用 `architectury-9.2.14-forge.jar`、`ftb-library-forge-2001.2.12.jar` 与 `ftb-ultimine-forge-2001.1.8.jar`，全部放在 `run/dev-mods`。
-- 不要把上述生产 JAR 直接放进 `run/mods`：在官方映射的 ForgeGradle 开发环境中，Architectury 的未重映射 refmap 会导致 `MixinFallingBlockEntity` 找不到字段并崩溃。
-- 三个 JAR 都在 `run/dev-mods` 时，IDEA、普通 `runClient` 和 `runGameTestServer` 会自动通过 `fg.deobf` 重映射并加载它们，无需额外参数；缺少任意 JAR 时自动跳过，不影响干净构建。需要临时关闭时使用 `-PenableUltimineCompatibility=false`。无论哪种情况，依赖都不会进入发布产物。
-- 已验证该开关下 Architectury、FTB Library、FTB Ultimine 与 Free Hands 均完成客户端加载；Ultimine 会嵌套调用 `ServerPlayerGameMode.destroyBlock`，虚拟主手上下文必须为每次嵌套调用成对入栈和出栈，不能在内层返回时清除外层工具。
-- `FTBUltimineMixin` 在 `blockRightClick` 的 `RETURN` 注入点工作：原版主手流程自然执行。若返回 `PASS`，则反射调用 `blockRightClick` 尝试副手（传 `OFF_HAND`，不设虚拟上下文；原版 `PlatformMethods` 直接读 `getItemInHand(OFF_HAND)`）；仍 `PASS` 时，遍历 `FreeHandEvents.ultimineUseStacks`：解放槽工具按铲→斧→锄优先级排序（`rightClickPriority`），其他 Curios 槽按 slot order 排在后面。每件依次 `beginUsing` 后反射调用 `MAIN_HAND`。任一阶段成功即替换回调返回值并取消事件，已消费的右键不会继续遍历剩余饰品，确保草方块铲土径与锄地分开为两次右键。
-- `ultimineChainsFreeHandShovelRightClick` 通过 Forge 的真实右键事件验证：按住 Ultimine 时，解放槽铁锹将两个草方块连锁铲为土径、事件被取消、工具扣除两点耐久，且物理主手保持为空。测试用静默网络连接只用于避免 GameTest 人工 `ServerPlayer` 缺失客户端连接，不能移入生产代码。
-- `ultimineDamagesFreeHandPickaxeForEveryBrokenBlock` 通过真实 Forge `BlockEvent.BREAK` 验证左键连锁：解放槽铁镐破坏两个相邻石头时，两个方块均被破坏、工具恰好损耗两点耐久，且物理主手保持为空。Ultimine 会自行递归破坏并取消最外层 `destroyBlock` 调用，因此测试应断言最终方块状态和耐久，不应断言最外层返回值。
-
+- FTB Ultimine `2001.1.8`（依赖 Architectury `>=9.2.14`、FTB Library `>=2001.2.1`）。三 jar 已纳入 `downloadDevelopmentClientMods` 自动下载；**三 jar 齐全才启用**（`enableUltimineCompatibility` 自动检测，可 `-PenableUltimineCompatibility=false` 临时关闭）。缺 jar 自动跳过，不影响干净构建；依赖不进发布产物。
+- 不要把这三个生产 JAR 放进 `run/mods`：官方映射开发环境下，Architectury 未重映射 refmap 会让 `MixinFallingBlockEntity` 找不到字段而崩溃。
+- Ultimine 会嵌套调用 `ServerPlayerGameMode.destroyBlock`：虚拟主手上下文必须为每次嵌套**成对入栈/出栈**，不能在内层返回时清除外层工具。
+- `FTBUltimineMixin` 在 `blockRightClick` 的 `RETURN` 注入：主手流程自然执行；`PASS` 则反射试副手（传 `OFF_HAND`，不设虚拟上下文；原版 `PlatformMethods` 直接读 `getItemInHand(OFF_HAND)`）；仍 `PASS` 遍历 `ultimineUseStacks`（解放槽按 `rightClickPriority` 铲→斧→锄，其余 Curios 槽按 slot order）。每件 `beginUsing` 后反射调 `MAIN_HAND`；任一阶段成功即替换返回值并取消事件，已消费右键不继续遍历（草方块铲土径与锄地分开为两次右键）。
+- 测试：`ultimineChainsFreeHandShovelRightClick`（右键连锁两草方块铲土径、扣 2 耐久、物理主手为空）、`ultimineDamagesFreeHandPickaxeForEveryBrokenBlock`（左键连锁破两石头、扣 2 耐久）。**断言最终方块状态与耐久，不断言最外层返回值**（Ultimine 递归破坏并取消最外层 `destroyBlock`）。测试用静默网络连接只用于避免人工 `ServerPlayer` 缺客户端连接，不得移入生产代码。
 
 ## 验证清单
 
 - `.\gradlew.bat build --no-daemon --max-workers=1 --console=plain` 通过。
-- `.\gradlew.bat runClient` 能启动客户端。
-- Curios UI 显示两个“解放槽”。
-- 铁镐放入解放槽后，空手可挖铁级方块。
-- 空手或主手没有对应方块速度加成、解放槽放合适工具时，解放槽工具掉耐久；主手有速度加成时保持主手逻辑。
-- 解放槽工具的效率、时运、精准采集和耐久附魔需要手动进游戏验证。
-- 铁剑放入解放槽后，攻击伤害提高。
-- 解放槽武器或工具参与攻击后，对应槽内物品掉耐久。
-- 解放槽武器的锋利、火焰附加、抢夺、耐久附魔需要手动进游戏验证。
-- 护甲放入解放槽后，护甲值变化。
-- 解放槽护甲受到攻击后掉耐久，保护类附魔参与减伤。
-- 铁、钻石、下界合金饰品放入解放槽后，分别提供完整原版铁、钻石、下界合金套装的防御属性；下界合金还提供 `0.4` 击退抗性。
+- `.\gradlew.bat runClient` 能启动客户端；Curios UI 显示两个"解放槽"。
+- 铁镐入解放槽后空手可挖铁级方块；空手/主手无速度加成时解放槽工具掉耐久，主手有加成时保持主手。
+- 铁剑入解放槽后攻击伤害提高；参与攻击的槽内物品掉耐久。
+- 护甲入解放槽后护甲值变化；受伤掉耐久，保护附魔参与减伤。
+- 铁/钻/下界合金饰品分别提供整套对应材质防御；下界合金另有 `0.4` 击退抗性。
 - `freehands:iron_trinket` 可装备并提供铁级能力。
-- 主、副手为空时，解放槽中的锄、斧、锹或剪刀可右键方块并消耗自身耐久。
-- 方块放置、主手右键和副手右键必须优先于解放槽工具右键。
+- 主、副手为空时解放槽中的锄/斧/锹/剪刀可右键方块并耗耐久。
+- 方块放置、主手右键、副手右键优先于解放槽工具右键。
+- 解放槽工具的效率/时运/精准采集/耐久附魔、武器的锋利/火焰附加/抢夺/耐久附魔需手动进游戏验证。

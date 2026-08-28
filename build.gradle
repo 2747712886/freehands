@@ -185,6 +185,23 @@ def developmentClientMods = [
                 filename: "jecharacters-1.20.1-forge-${just_enough_characters_version}.jar",
                 url     : "https://cdn.modrinth.com/data/I7k4B65h/versions/IU9c4v4I/jecharacters-1.20.1-forge-${just_enough_characters_version}.jar",
                 sha512  : 'e2834b5cb37e413ced9e0e3706da418536b5feb8d204334b84e2d3f315d9d5866d16a10a5babe6c38563c62f375470416af20aaa909ab207b7194888ebb46f8e'
+        ],
+        // FTB Ultimine 连锁采集兼容测试三件套（architectury 走 Modrinth，两个 FTB jar 走 CurseForge CDN，
+        // sha1 与 packwiz 社区清单一致，来源已验证）
+        [
+                filename: "architectury-9.2.14-forge.jar",
+                url     : "https://cdn.modrinth.com/data/lhGA9TYQ/versions/1MKTLiiG/architectury-9.2.14-forge.jar",
+                sha512  : 'cf67f2050cafa00f0bee42e6d7bef77fdb808ac4f71742f7b4d6d5c1e6ffb49561a5a252f332d2b78a9767bdb5faa284611790dba303fbdc736ae36d794f61c7'
+        ],
+        [
+                filename: "ftb-library-forge-2001.2.12.jar",
+                url     : "https://mediafilez.forgecdn.net/files/7296/748/ftb-library-forge-2001.2.12.jar",
+                sha512  : '6c2c88ce9e456197895b32a8995adf13a1923c5a35c967593308af1322bb47136fc92305f350544febcc05d0227d2a3f282d9e9d4c8ec5aacdc36176af78809b'
+        ],
+        [
+                filename: "ftb-ultimine-forge-2001.1.8.jar",
+                url     : "https://mediafilez.forgecdn.net/files/7880/472/ftb-ultimine-forge-2001.1.8.jar",
+                sha512  : '57e04a50f96e533d9f92aaa26861ec78709681faf98812b666f7240cb265140f6ac0c5f28025adc4961d8e51b22f65c3eead17bdba2ea7f2929815cafbfc65e5'
         ]
 ]
 
@@ -263,7 +280,14 @@ def enableUltimineCompatibility = providers.gradleProperty('enableUltimineCompat
         .orElse(ultimineCompatibilityJarsAvailable)
         .get()
 
-if (!runningGameTestServer) {
+// 客户端开发测试 mod 仅在三个 jar 实际存在时加入解析链（与下方 Ultimine 的
+// 自动检测同一模式）。任何 unresolvable 的 fg.deobf 依赖都会毒化共享的
+// :__obfuscated 管线、让 Curios 连带失败，因此缺 jar 时必须跳过而非报错。
+// 需要 JEI/IMBlocker/汉字输入时，先跑 downloadDevelopmentClientMods 补齐即可。
+def devModsJarsAvailable = developmentClientMods.every { mod ->
+    file("run/dev-mods/${mod.filename}").isFile()
+}
+if (devModsJarsAvailable) {
     dependencies {
         runtimeOnly fg.deobf("devmods:jei-1.20.1-forge:${jei_version}")
         runtimeOnly fg.deobf("devmods:imblocker:${imblocker_version}+1.20")
