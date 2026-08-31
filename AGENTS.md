@@ -140,7 +140,7 @@
 - 更新时间：2026-08-31 16:05
 - 本次完成：用户已游戏内确认全部正常。诊断日志已移除，干净代码 `runGameTestServer` 46/46、`build` 通过。本轮全部修复：① 孪生包去重（一次物理右键=主手+副手两包，主手生效后副手空包跳过连锁与单块回退）；② 饰品连锁动作缺口（Ultimine 斧分支强转 `AxeItemAccess`，改为读 `cachedPositions`（校验 `isPressed`+`cachedPos` 防旧缓存）逐位置执行饰品自身 `useOn`，去皮/刮锈/去蜡/铲平/熄营火/成熟藤蔓全支持）；③ 饰品去皮/刮锈/去蜡补 `AXE_STRIP/AXE_SCRAPE/AXE_WAX_OFF` 音效；④ 连锁配件/副手重试生效后追加 `swing(MAIN_HAND, true)`（Ultimine 内部 swing 只广播他人，客户端无法预知解放槽动作）；⑤ 土径锄地标签合并、`rightClickPriority` 排序、`aimAtBlock` 头部朝向等前序修复。
 - 关键决策：音效/挥臂机制是通用的（物品自播音效经 `LevelMixin` 对玩家可闻；挥臂由回退/连锁统一补发）；连锁路由受 Ultimine 四个固定分支限制（锄/剥/铲/收作物），未来新模组的全新交互类型单方块可直接用、连锁需把逐位置 useOn 兜底从"仅饰品"放开到所有解放槽物品；入口白名单为 `canUseOnBlock`（饰品/挖掘工具/剪刀）+ `free_hand.json` 物品标签。
-- 未完成 / 下一步：提交并推送（用户已同意提交推送，权限分类器曾拦截 `git push`，执行时需重试或由用户在终端执行 `git push origin 1.20.1`）。
-- 入手点：`git status` 看未提交改动（AGENTS.md、build.gradle、FreeHandEvents、FTBUltimineMixin、ServerPlayerGameModeMixin、AbilityTrinketItem、IronTrinketGameTests、新增 `src/main/resources/data/ftbultimine/tags/blocks/farmland_tillable.json`）。
+- 未完成 / 下一步：无阻塞项。改动已全部提交并推送（`16443f6`、`86addc6` → origin/1.20.1）。若要发新 Release：按仓库与发布节流程先跑完整 GameTest 与 build，再定 tag/标题/产物名并记录。
+- 入手点：改动已全部提交推送，`git show 86addc6`（本批：去重/饰品连锁/音效/挥臂）与 `git show 16443f6`（前批：土径锄地/动作顺序/测试）。
 - 维护规则：实质工作收尾时整块覆盖本标记区（agents-md-keeper skill）。
 <!-- HANDOFF-END -->
