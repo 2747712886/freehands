@@ -26,7 +26,7 @@
 - 挖掘：虚拟主手 `destroyBlock` 期间的采集检查**直接读已装备栈**（选择规则此刻看到的已是虚拟栈）；该上下文外保持主手优先。空主手 + 解放槽锹可右击草方块→土径、扣 1 耐久。
 - 右键：优先级固定 放置→主手→副手→解放槽（解放槽内按 `rightClickPriority` 铲平→去皮→锄地排序，与链式右键一致，避免锄头抢在铲平前把泥土直接锄成耕地）。`UseOnContext` 读 `getItemInHand(MAIN_HAND)`，虚拟主手须同时覆盖 `getMainHandItem` 与 `getItemInHand`。副手空时主手 `PASS` 可立即回退，但必须记录命中位置跳过同次副手空包；副手有物品时等其 `PASS`。只有 `PASS` 进下一槽，非 `PASS` 即停；下个右键从首槽重来。
 - 能力饰品多工具右键：锹铲平/熄营火、斧去皮/刮锈/去蜡、剪南瓜(pumpkin carving)/成熟藤蔓（测试 `ironTrinketCanFlatten/Strip/Till/Carve/Scrape/Wax/Mature*`）；**固定斧→锹顺序**（配方无锄，不支持锄地）；每次成功扣 1 耐久并广播主手摆臂。普通工具单放槽中亦可（锹→土径、斧→剥原木、剪→雕南瓜）。
-- 一物理右键只执行一次：主手+副手两个空包不重复触发（`freeHandToolRunsOnlyOnceAcrossHandPackets`）；副手空时单主手包也触发（`...HandlesMainHandPacketWhenOffHandIsEmpty`）。
+- 一物理右键只执行一次：两手皆空时客户端本地无法预知解放槽动作，会先后发送主手+副手两个 use 包；`FreeHandEvents.recordFreeHandHandled/isFreeHandHandled/consumeFreeHandHandled`（按玩家 UUID 记位置）供**链式路径与单块回退共用**去重——主手包生效后副手空包一律跳过（`freeHandToolRunsOnlyOnceAcrossHandPackets`、`ultimineChainActsOnlyOncePerPhysicalClick`）；副手空时单主手包也触发（`...HandlesMainHandPacketWhenOffHandIsEmpty`）。
 - 成功执行：无条件摆动 `MAIN_HAND` + 返回 `CONSUME`（原版 `sidedSuccess(false)` 映射为 `CONSUME` 且 `shouldSwing()==false`，不能靠 shouldSwing 判断）；`AbilityTrinketItem.applyModifiedState` 不自摆臂，mixin 统一负责。
 - 声音：仅 `VirtualMainHandContext.isUsing` 期间，`Level.playSound` mixin 清除"排除发声者"，否则虚拟工具无声（`freeHandRightClickSendsSoundToActingPlayer` 验证恰好一个包）；**勿用于挖掘上下文**。
 - 耐久：用 `isDamageableItem()`/`hurtAndBreak()`，尊重原版 `Unbreakable`，无自定义白名单（`unbreakableFreeHandToolDoesNotLoseDurability`）。
@@ -116,10 +116,12 @@
 - FTB Ultimine `2001.1.8`（依赖 Architectury `>=9.2.14`、FTB Library `>=2001.2.1`）。三 jar 已纳入 `downloadDevelopmentClientMods` 自动下载；**三 jar 齐全才启用**（`enableUltimineCompatibility` 自动检测，可 `-PenableUltimineCompatibility=false` 临时关闭）。缺 jar 自动跳过，不影响干净构建；依赖不进发布产物。
 - 不要把这三个生产 JAR 放进 `run/mods`：官方映射开发环境下，Architectury 未重映射 refmap 会让 `MixinFallingBlockEntity` 找不到字段而崩溃。
 - Ultimine 会嵌套调用 `ServerPlayerGameMode.destroyBlock`：虚拟主手上下文必须为每次嵌套**成对入栈/出栈**，不能在内层返回时清除外层工具。
-- `FTBUltimineMixin` 在 `blockRightClick` 的 `RETURN` 注入：主手流程自然执行；`PASS` 则反射试副手（传 `OFF_HAND`，不设虚拟上下文；原版 `PlatformMethods` 直接读 `getItemInHand(OFF_HAND)`）；仍 `PASS` 遍历 `ultimineUseStacks`（解放槽按 `rightClickPriority` 铲→斧→锄，其余 Curios 槽按 slot order）。每件 `beginUsing` 后反射调 `MAIN_HAND`；任一阶段成功即替换返回值并取消事件，已消费右键不继续遍历（草方块铲土径与锄地分开为两次右键）。
+- `FTBUltimineMixin` 在 `blockRightClick` 的 `RETURN` 注入：主手流程自然执行；`PASS` 则反射试副手（传 `OFF_HAND`，不设虚拟上下文；原版 `PlatformMethods` 直接读 `getItemInHand(OFF_HAND)`）；仍 `PASS` 遍历 `ultimineUseStacks`（解放槽按 `rightClickPriority` 铲→斧→锄，其余 Curios 槽按 slot order）。每件 `beginUsing` 后反射调 `MAIN_HAND`；任一阶段成功即替换返回值并取消事件，已消费右键不继续遍历（草方块铲土径与锄地分开为两次右键）。**孪生包去重**：主手事件被 Ultimine 本体或解放槽连锁处理后即 `recordFreeHandHandled`；同一物理右键随后的 `OFF_HAND` 空包命中该位置时直接跳过连锁，避免"一次点击铲平+锄地连做、下一次点击无动作"。
 - 链式右键按解放槽工具判定动作分支：`PlatformMethodsImpl.blockRightClick` 依 `getItemInHand(hand).canPerformAction` 走 锄→斧→锹（右击锄地/剥皮/铲平），解放槽工具经虚拟主手命中同一分支。**土径(锹土路)锄地**：原版 `HoeItem.TILLABLES` 允许 dirt_path→farmland，但 Ultimine 的 `ftbultimine:farmland_tillable` 标签缺 `minecraft:dirt_path`，本模组以 `src/main/resources/data/ftbultimine/tags/blocks/farmland_tillable.json`（`replace:false`）合并该方块补上。另注意：Ultimine 的 `shovel_flattenable` 标签含 `#forge:dirt`，因此链式铲平对泥土/砂土也生效（泥土→土径），饰品+锄头连锁在泥土上也能走出"先土径、第二次右键再耕地"的两步流程。
 - **GameTest 瞄准必须设 `yHeadRot`**：Ultimine 的 `pick` 视线读 `LivingEntity.getViewYRot`→`yHeadRot`，而 `yHeadRot` 只在 `Player.serverAiStep` 每 tick 从 `yRot` 同步；测试里 `setYRot` 后同一 tick 就 post 事件，射线会沿出生随机偏航发射、偶发 MISS，表现为连锁测试随机失败。`aimAtBlock` 必须同时 `setYHeadRot`/`setYBodyRot`。
-- 测试：`ultimineChainsFreeHandShovelRightClick`（右键连锁两草方块铲土径、扣 2 耐久）、`ultimineChainsFreeHandHoeOnDirt`（锄连锁两泥土→耕地）、`ultimineChainsFreeHandHoeOnDirtPath`（锄连锁两土径→耕地，依赖上方标签合并）、`ultimineChainsFreeHandAxeStripsLogs`（斧连锁剥两原木）、`ultimineChainsIronTrinketFlattensGrass`（饰品连锁铲两草方块）、`ultimineTrinketFlattensDirtBeforeHoeTills`（饰品+锄头：第一次连锁右键饰品把两泥土铲成土径、扣饰品 2 耐久且锄头不掉耐久，第二次连锁右键锄头把两土径锄成耕地、扣锄头 2 耐久）、`ultimineHoeInEarlierSlotStillFlattensFirstViaTrinket`（锄头占前槽时仍由饰品先铲平，顺序不受槽位影响）、`ultimineDamagesFreeHandPickaxeForEveryBrokenBlock`（左键连锁破两石头、扣 2 耐久）。**断言最终方块状态与耐久，不断言最外层返回值**（Ultimine 递归破坏并取消最外层 `destroyBlock`）。测试用静默网络连接只用于避免人工 `ServerPlayer` 缺客户端连接，不得移入生产代码。
+- **饰品连锁不走 Ultimine 分支**：其斧分支会把物品强转成自己的 `AxeItemAccess` 混入接口，多合一饰品必炸；且分支按 `canPerformAction` 单选、选中即返回（即使结果 0），也无法表达多动作。故 `FTBUltimineMixin` 对 `AbilityTrinketItem` 直接读取 Ultimine 的 `cachedPositions`（须校验 `isPressed` 且 `cachedPos` 等于本次点击位置，防止拿到上次点击的旧缓存），对每个位置执行饰品自身 `useOn`（去皮/刮锈/去蜡/铲平/熄营火/成熟藤蔓一次覆盖），任一生效即以反射构造的 `EventResult.interruptFalse()` 作为事件返回；普通工具仍反射调 `blockRightClick`。
+- **右键反馈（音效+挥臂）**：饰品去皮/刮锈/去蜡经 `applyModifiedState(…, SoundEvent)` 播放 `AXE_STRIP/AXE_SCRAPE/AXE_WAX_OFF`（对齐原版斧头；铲平/熄营火/成熟藤蔓本就有声，锄地声来自 Ultimine 本体）。解放槽动作客户端无法预测，玩家自己看不到挥臂：Ultimine 内部 `swing` 是 `updateSelf=false` 只广播给他人，故连锁配件/副手重试生效后由 mixin 追加 `swing(MAIN_HAND, true)`（`broadcastAndSend` 发给自己），与单块回退一致。
+- 测试：`ultimineChainsFreeHandShovelRightClick`（右键连锁两草方块铲土径、扣 2 耐久）、`ultimineChainsFreeHandHoeOnDirt`（锄连锁两泥土→耕地）、`ultimineChainsFreeHandHoeOnDirtPath`（锄连锁两土径→耕地，依赖上方标签合并）、`ultimineChainsFreeHandAxeStripsLogs`（斧连锁剥两原木）、`ultimineChainsIronTrinketFlattensGrass`（饰品连锁铲两草方块）、`ultimineChainsIronTrinketStripsLogs`（饰品连锁剥两原木、扣 2 耐久，锁定饰品逐位置连锁处理）、`ultimineTrinketFlattensDirtBeforeHoeTills`（饰品+锄头：第一次连锁右键饰品把两泥土铲成土径、扣饰品 2 耐久且锄头不掉耐久，第二次连锁右键锄头把两土径锄成耕地、扣锄头 2 耐久）、`ultimineHoeInEarlierSlotStillFlattensFirstViaTrinket`（锄头占前槽时仍由饰品先铲平，顺序不受槽位影响）、`ultimineChainTriggersThroughRealUseItemOnFlow`（不手动 post 事件，走真实 `gameMode.useItemOn` 包路径触发连锁）、`ultimineChainActsOnlyOncePerPhysicalClick`（模拟客户端孪生包：每次点击 post 主手+副手两个事件，断言第一击只铲平、锄头不掉耐久，第二击才锄成耕地）、`ultimineDamagesFreeHandPickaxeForEveryBrokenBlock`（左键连锁破两石头、扣 2 耐久）。**断言最终方块状态与耐久，不断言最外层返回值**（Ultimine 递归破坏并取消最外层 `destroyBlock`）。测试用静默网络连接只用于避免人工 `ServerPlayer` 缺客户端连接，不得移入生产代码。
 
 ## 验证清单
 
@@ -135,10 +137,10 @@
 - 解放槽工具的效率/时运/精准采集/耐久附魔、武器的锋利/火焰附加/抢夺/耐久附魔需手动进游戏验证。
 <!-- HANDOFF-START -->
 ## 交接区（自动维护，请勿手改本块）
-- 更新时间：2026-08-31 13:30
-- 本次完成：接手上个会话中断的任务。定位并修复连锁测试偶发失败根因（`aimAtBlock` 缺 `setYHeadRot`/`setYBodyRot`，Ultimine `pick` 读 `yHeadRot` 而非 `yRot`）；清理上个会话残留的 DBG 调试代码；`runGameTestServer` 连续三轮 43/43 全绿、`build` 通过，产物含 `farmland_tillable` 土径标签合并。
-- 关键决策：饰品+锄头连锁两步流程（第一次右键饰品铲土径、第二次锄耕地）由 `rightClickPriority` 排序保证，单块回退 `freeHandUseStacks` 也已改为同序；泥土直接被锄成耕地只在"没有可铲平方块"时才是正确行为，草方块/泥土（Ultimine `shovel_flattenable` 含 `#forge:dirt`）都会先出土径。
-- 未完成 / 下一步：改动未提交（用户未确认）；用户需进游戏复测饰品+锄头连锁（用新 `build/libs/freehands-forge-1.20.1-0.1.0.jar` 或 `runClient`），重点：按住 Ultimine 键右击草方块/泥土应连锁出土径，再次右击土径应连锁锄成耕地。
-- 入手点：`git status` 看未提交改动（AGENTS.md、build.gradle、FreeHandEvents、IronTrinketGameTests、新增 `src/main/resources/data/ftbultimine/`）；诊断日志在会话记录里，`.cowork-temp/` 已清空。
+- 更新时间：2026-08-31 16:05
+- 本次完成：用户已游戏内确认全部正常。诊断日志已移除，干净代码 `runGameTestServer` 46/46、`build` 通过。本轮全部修复：① 孪生包去重（一次物理右键=主手+副手两包，主手生效后副手空包跳过连锁与单块回退）；② 饰品连锁动作缺口（Ultimine 斧分支强转 `AxeItemAccess`，改为读 `cachedPositions`（校验 `isPressed`+`cachedPos` 防旧缓存）逐位置执行饰品自身 `useOn`，去皮/刮锈/去蜡/铲平/熄营火/成熟藤蔓全支持）；③ 饰品去皮/刮锈/去蜡补 `AXE_STRIP/AXE_SCRAPE/AXE_WAX_OFF` 音效；④ 连锁配件/副手重试生效后追加 `swing(MAIN_HAND, true)`（Ultimine 内部 swing 只广播他人，客户端无法预知解放槽动作）；⑤ 土径锄地标签合并、`rightClickPriority` 排序、`aimAtBlock` 头部朝向等前序修复。
+- 关键决策：音效/挥臂机制是通用的（物品自播音效经 `LevelMixin` 对玩家可闻；挥臂由回退/连锁统一补发）；连锁路由受 Ultimine 四个固定分支限制（锄/剥/铲/收作物），未来新模组的全新交互类型单方块可直接用、连锁需把逐位置 useOn 兜底从"仅饰品"放开到所有解放槽物品；入口白名单为 `canUseOnBlock`（饰品/挖掘工具/剪刀）+ `free_hand.json` 物品标签。
+- 未完成 / 下一步：提交并推送（用户已同意提交推送，权限分类器曾拦截 `git push`，执行时需重试或由用户在终端执行 `git push origin 1.20.1`）。
+- 入手点：`git status` 看未提交改动（AGENTS.md、build.gradle、FreeHandEvents、FTBUltimineMixin、ServerPlayerGameModeMixin、AbilityTrinketItem、IronTrinketGameTests、新增 `src/main/resources/data/ftbultimine/tags/blocks/farmland_tillable.json`）。
 - 维护规则：实质工作收尾时整块覆盖本标记区（agents-md-keeper skill）。
 <!-- HANDOFF-END -->

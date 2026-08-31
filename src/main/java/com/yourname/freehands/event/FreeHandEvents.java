@@ -13,6 +13,7 @@ import net.minecraft.world.entity.EquipmentSlot;
 import net.minecraft.world.entity.ai.attributes.AttributeModifier;
 import net.minecraft.world.entity.ai.attributes.Attributes;
 import net.minecraft.world.entity.ai.attributes.AttributeInstance;
+import net.minecraft.core.BlockPos;
 import net.minecraft.world.entity.LivingEntity;
 import net.minecraft.world.entity.player.Player;
 import net.minecraft.world.item.ArmorItem;
@@ -48,8 +49,29 @@ public final class FreeHandEvents {
     private static final UUID FREE_HAND_ARMOR_UUID = UUID.fromString("e005fb78-f2f6-48f1-908f-8cb8b18d4996");
     private static final UUID FREE_HAND_TOUGHNESS_UUID = UUID.fromString("f076c0b5-c03e-44ad-9205-92f3316e7852");
     private static final Map<CombatHit, Float> CRITICAL_HIT_MULTIPLIERS = new HashMap<>();
+    // 一次物理右键客户端会先后发送主手、副手两个 use 包（两手皆空时本地都判定 PASS）。
+    // 记录解放槽动作已生效的位置，副手空包到达时跳过，避免同一次右键执行两次动作。
+    private static final Map<UUID, BlockPos> FREE_HAND_HANDLED_POS = new HashMap<>();
 
     private FreeHandEvents() {
+    }
+
+    public static void recordFreeHandHandled(Player player, BlockPos pos) {
+        FREE_HAND_HANDLED_POS.put(player.getUUID(), pos.immutable());
+    }
+
+    public static boolean isFreeHandHandled(Player player, BlockPos pos) {
+        BlockPos recorded = FREE_HAND_HANDLED_POS.get(player.getUUID());
+        return recorded != null && recorded.equals(pos);
+    }
+
+    public static boolean consumeFreeHandHandled(Player player, BlockPos pos) {
+        BlockPos recorded = FREE_HAND_HANDLED_POS.get(player.getUUID());
+        if (recorded != null && recorded.equals(pos)) {
+            FREE_HAND_HANDLED_POS.remove(player.getUUID());
+            return true;
+        }
+        return false;
     }
 
     @SubscribeEvent

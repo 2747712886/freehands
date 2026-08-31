@@ -20,9 +20,6 @@ import org.spongepowered.asm.mixin.Unique;
 
 @Mixin(ServerPlayerGameMode.class)
 public abstract class ServerPlayerGameModeMixin {
-    @Unique
-    private BlockPos freehands$mainHandFallbackPos;
-
     @Shadow
     protected ServerPlayer player;
 
@@ -50,14 +47,13 @@ public abstract class ServerPlayerGameModeMixin {
         }
 
         if (hand == InteractionHand.MAIN_HAND) {
-            freehands$mainHandFallbackPos = null;
             if (callback.getReturnValue() != InteractionResult.PASS || !player.getOffhandItem().isEmpty()) {
                 return;
             }
 
             InteractionResult result = freehands$useFreeHandTool(player, level, hitResult);
             if (result != InteractionResult.PASS) {
-                freehands$mainHandFallbackPos = hitResult.getBlockPos().immutable();
+                FreeHandEvents.recordFreeHandHandled(player, hitResult.getBlockPos());
                 player.swing(InteractionHand.MAIN_HAND, true);
                 callback.setReturnValue(InteractionResult.CONSUME);
             }
@@ -68,13 +64,13 @@ public abstract class ServerPlayerGameModeMixin {
             return;
         }
 
-        if (hitResult.getBlockPos().equals(freehands$mainHandFallbackPos)) {
-            freehands$mainHandFallbackPos = null;
+        if (FreeHandEvents.consumeFreeHandHandled(player, hitResult.getBlockPos())) {
             return;
         }
 
         InteractionResult result = freehands$useFreeHandTool(player, level, hitResult);
         if (result != InteractionResult.PASS) {
+            FreeHandEvents.recordFreeHandHandled(player, hitResult.getBlockPos());
             player.swing(InteractionHand.MAIN_HAND, true);
             callback.setReturnValue(InteractionResult.CONSUME);
         }

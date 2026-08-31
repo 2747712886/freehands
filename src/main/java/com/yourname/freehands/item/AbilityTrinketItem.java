@@ -133,7 +133,7 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
                     (java.util.Map<net.minecraft.world.level.block.Block, net.minecraft.world.level.block.Block>) field.get(null);
             net.minecraft.world.level.block.Block stripped = strippables.get(state.getBlock());
             if (stripped != null) {
-                return applyModifiedState(context, stripped.defaultBlockState());
+                return applyModifiedState(context, stripped.defaultBlockState(), SoundEvents.AXE_STRIP);
             }
         } catch (Exception ignored) {
         }
@@ -144,7 +144,7 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
     private InteractionResult tryAxeScrape(UseOnContext context, BlockState state) {
         java.util.Optional<BlockState> previous = net.minecraft.world.level.block.WeatheringCopper.getPrevious(state);
         if (previous.isPresent()) {
-            return applyModifiedState(context, previous.get());
+            return applyModifiedState(context, previous.get(), SoundEvents.AXE_SCRAPE);
         }
         return InteractionResult.PASS;
     }
@@ -159,7 +159,7 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
             com.google.common.collect.BiMap<net.minecraft.world.level.block.Block, net.minecraft.world.level.block.Block> waxables = supplier.get();
             net.minecraft.world.level.block.Block unwaxed = waxables.inverse().get(state.getBlock());
             if (unwaxed != null) {
-                return applyModifiedState(context, unwaxed.defaultBlockState());
+                return applyModifiedState(context, unwaxed.defaultBlockState(), SoundEvents.AXE_WAX_OFF);
             }
         } catch (Exception ignored) {
         }
@@ -181,12 +181,19 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
     }
 
     private InteractionResult applyModifiedState(UseOnContext context, BlockState modifiedState) {
+        return applyModifiedState(context, modifiedState, null);
+    }
+
+    private InteractionResult applyModifiedState(UseOnContext context, BlockState modifiedState, SoundEvent sound) {
         Level level = context.getLevel();
         BlockPos pos = context.getClickedPos();
         Player player = context.getPlayer();
         if (!level.isClientSide()) {
             level.setBlock(pos, modifiedState, 11);
             level.gameEvent(GameEvent.BLOCK_CHANGE, pos, GameEvent.Context.of(player, modifiedState));
+            if (sound != null) {
+                level.playSound(player, pos, sound, SoundSource.BLOCKS, 1.0F, 1.0F);
+            }
             if (player != null) {
                 FreeHandEvents.damageFreeHandItem(context.getItemInHand(), player, 1);
             }
