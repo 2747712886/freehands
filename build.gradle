@@ -280,14 +280,17 @@ def enableUltimineCompatibility = providers.gradleProperty('enableUltimineCompat
         .orElse(ultimineCompatibilityJarsAvailable)
         .get()
 
-// 客户端开发测试 mod 仅在三个 jar 实际存在时加入解析链（与下方 Ultimine 的
-// 自动检测同一模式）。任何 unresolvable 的 fg.deobf 依赖都会毒化共享的
-// :__obfuscated 管线、让 Curios 连带失败，因此缺 jar 时必须跳过而非报错。
-// 需要 JEI/IMBlocker/汉字输入时，先跑 downloadDevelopmentClientMods 补齐即可。
-def devModsJarsAvailable = developmentClientMods.every { mod ->
-    file("run/dev-mods/${mod.filename}").isFile()
-}
-if (devModsJarsAvailable) {
+// 客户端专用 devmods（JEI/IMBlocker/JEC）仅在三个 jar 实际存在时加入解析链，
+// 且只进客户端运行配置：GameTestServer 是专用服务端，加载它们会因引用客户端类
+// （如 net.minecraft.client.searchtree.SuffixArray）而崩溃，必须排除。
+// 任何 unresolvable 的 fg.deobf 依赖都会毒化共享的 :__obfuscated 管线、让 Curios
+// 连带失败，因此缺 jar 时必须跳过而非报错。
+def clientOnlyDevModsAvailable = [
+        file("run/dev-mods/jei-1.20.1-forge-${jei_version}.jar"),
+        file("run/dev-mods/imblocker-${imblocker_version}+1.20.jar"),
+        file("run/dev-mods/jecharacters-1.20.1-forge-${just_enough_characters_version}.jar")
+].every { it.isFile() }
+if (clientOnlyDevModsAvailable && !runningGameTestServer) {
     dependencies {
         runtimeOnly fg.deobf("devmods:jei-1.20.1-forge:${jei_version}")
         runtimeOnly fg.deobf("devmods:imblocker:${imblocker_version}+1.20")

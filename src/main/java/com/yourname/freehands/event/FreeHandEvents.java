@@ -179,8 +179,11 @@ public final class FreeHandEvents {
     }
 
     public static List<ItemStack> freeHandUseStacks(Player player) {
+        // 与链式右键(ultimineUseStacks)一致：铲平(锹/饰品)优先于锄地，
+        // 避免单块回退因槽位顺序让锄头直接把泥土锄成耕地、跳过土径中间态。
         return freeHandStacks(player).stream()
                 .filter(FreeHandEvents::canUseOnBlock)
+                .sorted(Comparator.comparingInt(FreeHandEvents::rightClickPriority))
                 .toList();
     }
 

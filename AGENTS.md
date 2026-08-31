@@ -18,12 +18,13 @@
 - JEI `15.20.0.133`、IMBlocker `4.0.5`、JustEnoughCharacters `4.6.7`。
 - FTB Ultimine 三件套：`architectury-9.2.14-forge.jar`、`ftb-library-forge-2001.2.12.jar`、`ftb-ultimine-forge-2001.1.8.jar`（后两个走 CurseForge CDN，sha1 与社区 packwiz 清单核对一致）。
 - 依赖守卫：六个 devmods 均**仅当对应 jar 存在于 `run/dev-mods` 时才声明**（自动检测）。任何解析不了的 `fg.deobf` 依赖会毒化共享的 `:__obfuscated` 管线、让 Curios 连带失败——缺 jar 必须"跳过声明"而非报错。恢复 JEI/IMBlocker 只需跑一次 `downloadDevelopmentClientMods`。
+- **客户端专用 devmods（JEI/IMBlocker/JEC）只进客户端运行配置**：`runGameTestServer` 是专用服务端，加载它们会因引用客户端类（如 `net.minecraft.client.searchtree.SuffixArray`）在 CONSTRUCT 阶段崩溃，故按 `!runningGameTestServer` 排除；Ultimine 三件套服务端安全，始终按 jar 存在性启用。
 
 ## 回归测试要点
 
 - `IronTrinketGameTests`（Forge GameTest）：铁/钻/下界合金整套防御、爆炸伤害（铁套基线）、爆炸保护 IV、玩家 TNT 行为。
 - 挖掘：虚拟主手 `destroyBlock` 期间的采集检查**直接读已装备栈**（选择规则此刻看到的已是虚拟栈）；该上下文外保持主手优先。空主手 + 解放槽锹可右击草方块→土径、扣 1 耐久。
-- 右键：优先级固定 放置→主手→副手→解放槽（槽序）。`UseOnContext` 读 `getItemInHand(MAIN_HAND)`，虚拟主手须同时覆盖 `getMainHandItem` 与 `getItemInHand`。副手空时主手 `PASS` 可立即回退，但必须记录命中位置跳过同次副手空包；副手有物品时等其 `PASS`。只有 `PASS` 进下一槽，非 `PASS` 即停；下个右键从首槽重来。
+- 右键：优先级固定 放置→主手→副手→解放槽（解放槽内按 `rightClickPriority` 铲平→去皮→锄地排序，与链式右键一致，避免锄头抢在铲平前把泥土直接锄成耕地）。`UseOnContext` 读 `getItemInHand(MAIN_HAND)`，虚拟主手须同时覆盖 `getMainHandItem` 与 `getItemInHand`。副手空时主手 `PASS` 可立即回退，但必须记录命中位置跳过同次副手空包；副手有物品时等其 `PASS`。只有 `PASS` 进下一槽，非 `PASS` 即停；下个右键从首槽重来。
 - 能力饰品多工具右键：锹铲平/熄营火、斧去皮/刮锈/去蜡、剪南瓜(pumpkin carving)/成熟藤蔓（测试 `ironTrinketCanFlatten/Strip/Till/Carve/Scrape/Wax/Mature*`）；**固定斧→锹顺序**（配方无锄，不支持锄地）；每次成功扣 1 耐久并广播主手摆臂。普通工具单放槽中亦可（锹→土径、斧→剥原木、剪→雕南瓜）。
 - 一物理右键只执行一次：主手+副手两个空包不重复触发（`freeHandToolRunsOnlyOnceAcrossHandPackets`）；副手空时单主手包也触发（`...HandlesMainHandPacketWhenOffHandIsEmpty`）。
 - 成功执行：无条件摆动 `MAIN_HAND` + 返回 `CONSUME`（原版 `sidedSuccess(false)` 映射为 `CONSUME` 且 `shouldSwing()==false`，不能靠 shouldSwing 判断）；`AbilityTrinketItem.applyModifiedState` 不自摆臂，mixin 统一负责。
@@ -58,7 +59,7 @@
 ## 能力实现规则
 
 - 挖掘优先级：主手对目标方块速度加成 > 基础时始终主手；否则用解放槽最优工具。实现：`FreeHandEvents` 经采集检查/破坏速度事件选工具，Mixin 在 `ServerPlayerGameMode.destroyBlock` 内暴露为虚拟主手；不写/不换真实主手物品栏，时运/精准/效率/工具回调/耐久全走原版。
-- 右键实现：放置、主手、副手优先于解放槽。副手空时主手 `PASS` 可立即回退但须记录命中位置并跳过同次副手空包；副手有物品时等其 `PASS` 后才按槽序尝试。只有 `PASS` 进下一槽，任何非 `PASS` 停止遍历；下次右键从首槽重来。`UseOnContext` 读 `getItemInHand(MAIN_HAND)`，虚拟主手必须覆盖该访问器。
+- 右键实现：放置、主手、副手优先于解放槽。副手空时主手 `PASS` 可立即回退但须记录命中位置并跳过同次副手空包；副手有物品时等其 `PASS` 后才按 `rightClickPriority`（铲平→去皮→锄地）尝试解放槽物品。只有 `PASS` 进下一槽，任何非 `PASS` 停止遍历；下次右键重来。`UseOnContext` 读 `getItemInHand(MAIN_HAND)`，虚拟主手必须覆盖该访问器。
 - 右键成功：无条件摆动 `MAIN_HAND` 并返回 `CONSUME`，防止 `handleUseItemOn` 按发包的手摆空手（原版 `sidedSuccess(false)` 映射为 `CONSUME`、`shouldSwing()==false`，不能靠 shouldSwing 判断）。`AbilityTrinketItem.applyModifiedState` 不自摆臂，mixin 统一处理。
 - Curios 读取：**不用已弃用的 `findCurios(LivingEntity, String...)`**；用 `CuriosApi.getCuriosInventory(player)` + `getStacksHandler(FreeHands.FREE_HAND_SLOT)` + `IDynamicStackHandler`。
 - 攻击逻辑：解放槽最高攻击值作为额外伤害叠加，不替换主手伤害；只扣实际参与叠伤的槽内武器/工具耐久。只选伤害最高者；显式补充锋利类伤害、火焰附加、该物品抢夺等级，额外伤害继承暴击倍率；其他特殊攻击附魔不默认兼容。
@@ -116,7 +117,9 @@
 - 不要把这三个生产 JAR 放进 `run/mods`：官方映射开发环境下，Architectury 未重映射 refmap 会让 `MixinFallingBlockEntity` 找不到字段而崩溃。
 - Ultimine 会嵌套调用 `ServerPlayerGameMode.destroyBlock`：虚拟主手上下文必须为每次嵌套**成对入栈/出栈**，不能在内层返回时清除外层工具。
 - `FTBUltimineMixin` 在 `blockRightClick` 的 `RETURN` 注入：主手流程自然执行；`PASS` 则反射试副手（传 `OFF_HAND`，不设虚拟上下文；原版 `PlatformMethods` 直接读 `getItemInHand(OFF_HAND)`）；仍 `PASS` 遍历 `ultimineUseStacks`（解放槽按 `rightClickPriority` 铲→斧→锄，其余 Curios 槽按 slot order）。每件 `beginUsing` 后反射调 `MAIN_HAND`；任一阶段成功即替换返回值并取消事件，已消费右键不继续遍历（草方块铲土径与锄地分开为两次右键）。
-- 测试：`ultimineChainsFreeHandShovelRightClick`（右键连锁两草方块铲土径、扣 2 耐久、物理主手为空）、`ultimineDamagesFreeHandPickaxeForEveryBrokenBlock`（左键连锁破两石头、扣 2 耐久）。**断言最终方块状态与耐久，不断言最外层返回值**（Ultimine 递归破坏并取消最外层 `destroyBlock`）。测试用静默网络连接只用于避免人工 `ServerPlayer` 缺客户端连接，不得移入生产代码。
+- 链式右键按解放槽工具判定动作分支：`PlatformMethodsImpl.blockRightClick` 依 `getItemInHand(hand).canPerformAction` 走 锄→斧→锹（右击锄地/剥皮/铲平），解放槽工具经虚拟主手命中同一分支。**土径(锹土路)锄地**：原版 `HoeItem.TILLABLES` 允许 dirt_path→farmland，但 Ultimine 的 `ftbultimine:farmland_tillable` 标签缺 `minecraft:dirt_path`，本模组以 `src/main/resources/data/ftbultimine/tags/blocks/farmland_tillable.json`（`replace:false`）合并该方块补上。另注意：Ultimine 的 `shovel_flattenable` 标签含 `#forge:dirt`，因此链式铲平对泥土/砂土也生效（泥土→土径），饰品+锄头连锁在泥土上也能走出"先土径、第二次右键再耕地"的两步流程。
+- **GameTest 瞄准必须设 `yHeadRot`**：Ultimine 的 `pick` 视线读 `LivingEntity.getViewYRot`→`yHeadRot`，而 `yHeadRot` 只在 `Player.serverAiStep` 每 tick 从 `yRot` 同步；测试里 `setYRot` 后同一 tick 就 post 事件，射线会沿出生随机偏航发射、偶发 MISS，表现为连锁测试随机失败。`aimAtBlock` 必须同时 `setYHeadRot`/`setYBodyRot`。
+- 测试：`ultimineChainsFreeHandShovelRightClick`（右键连锁两草方块铲土径、扣 2 耐久）、`ultimineChainsFreeHandHoeOnDirt`（锄连锁两泥土→耕地）、`ultimineChainsFreeHandHoeOnDirtPath`（锄连锁两土径→耕地，依赖上方标签合并）、`ultimineChainsFreeHandAxeStripsLogs`（斧连锁剥两原木）、`ultimineChainsIronTrinketFlattensGrass`（饰品连锁铲两草方块）、`ultimineTrinketFlattensDirtBeforeHoeTills`（饰品+锄头：第一次连锁右键饰品把两泥土铲成土径、扣饰品 2 耐久且锄头不掉耐久，第二次连锁右键锄头把两土径锄成耕地、扣锄头 2 耐久）、`ultimineHoeInEarlierSlotStillFlattensFirstViaTrinket`（锄头占前槽时仍由饰品先铲平，顺序不受槽位影响）、`ultimineDamagesFreeHandPickaxeForEveryBrokenBlock`（左键连锁破两石头、扣 2 耐久）。**断言最终方块状态与耐久，不断言最外层返回值**（Ultimine 递归破坏并取消最外层 `destroyBlock`）。测试用静默网络连接只用于避免人工 `ServerPlayer` 缺客户端连接，不得移入生产代码。
 
 ## 验证清单
 
@@ -130,3 +133,12 @@
 - 主、副手为空时解放槽中的锄/斧/锹/剪刀可右键方块并耗耐久。
 - 方块放置、主手右键、副手右键优先于解放槽工具右键。
 - 解放槽工具的效率/时运/精准采集/耐久附魔、武器的锋利/火焰附加/抢夺/耐久附魔需手动进游戏验证。
+<!-- HANDOFF-START -->
+## 交接区（自动维护，请勿手改本块）
+- 更新时间：2026-08-31 13:30
+- 本次完成：接手上个会话中断的任务。定位并修复连锁测试偶发失败根因（`aimAtBlock` 缺 `setYHeadRot`/`setYBodyRot`，Ultimine `pick` 读 `yHeadRot` 而非 `yRot`）；清理上个会话残留的 DBG 调试代码；`runGameTestServer` 连续三轮 43/43 全绿、`build` 通过，产物含 `farmland_tillable` 土径标签合并。
+- 关键决策：饰品+锄头连锁两步流程（第一次右键饰品铲土径、第二次锄耕地）由 `rightClickPriority` 排序保证，单块回退 `freeHandUseStacks` 也已改为同序；泥土直接被锄成耕地只在"没有可铲平方块"时才是正确行为，草方块/泥土（Ultimine `shovel_flattenable` 含 `#forge:dirt`）都会先出土径。
+- 未完成 / 下一步：改动未提交（用户未确认）；用户需进游戏复测饰品+锄头连锁（用新 `build/libs/freehands-forge-1.20.1-0.1.0.jar` 或 `runClient`），重点：按住 Ultimine 键右击草方块/泥土应连锁出土径，再次右击土径应连锁锄成耕地。
+- 入手点：`git status` 看未提交改动（AGENTS.md、build.gradle、FreeHandEvents、IronTrinketGameTests、新增 `src/main/resources/data/ftbultimine/`）；诊断日志在会话记录里，`.cowork-temp/` 已清空。
+- 维护规则：实质工作收尾时整块覆盖本标记区（agents-md-keeper skill）。
+<!-- HANDOFF-END -->

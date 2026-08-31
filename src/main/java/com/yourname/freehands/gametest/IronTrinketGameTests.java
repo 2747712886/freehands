@@ -860,6 +860,214 @@ public final class IronTrinketGameTests {
         });
     }
 
+    @GameTest(template = "empty")
+    public static void ultimineChainsFreeHandHoeOnDirt(GameTestHelper helper) {
+        BlockPos firstDirtPos = new BlockPos(1, 2, 1);
+        BlockPos secondDirtPos = new BlockPos(2, 2, 1);
+        ServerPlayer player = spawnServerPlayer(helper);
+        ItemStack hoe = new ItemStack(Items.IRON_HOE);
+        equipTrinket(player, hoe);
+        helper.setBlock(firstDirtPos, Blocks.DIRT);
+        helper.setBlock(secondDirtPos, Blocks.DIRT);
+
+        helper.runAfterDelay(90, () -> {
+            BlockPos absoluteFirstDirtPos = helper.absolutePos(firstDirtPos);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteFirstDirtPos), Direction.UP, absoluteFirstDirtPos, false);
+            if (!pressUltimineKey(player, absoluteFirstDirtPos)) {
+                helper.succeed();
+                return;
+            }
+
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event =
+                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
+                            player, InteractionHand.MAIN_HAND, absoluteFirstDirtPos, hit);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+            helper.assertTrue(event.isCanceled(),
+                    "Ultimine must consume a free-hand hoe right-click after it chains the till action");
+            helper.assertBlockPresent(Blocks.FARMLAND, firstDirtPos);
+            helper.assertBlockPresent(Blocks.FARMLAND, secondDirtPos);
+            helper.assertTrue(hoe.getDamageValue() == 2,
+                    "Ultimine must consume one free-hand hoe durability for every tilled block");
+            helper.assertTrue(player.getMainHandItem().isEmpty(),
+                    "A free-hand tool must not move into the physical main hand");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void ultimineChainsFreeHandHoeOnDirtPath(GameTestHelper helper) {
+        BlockPos firstPathPos = new BlockPos(1, 2, 1);
+        BlockPos secondPathPos = new BlockPos(2, 2, 1);
+        ServerPlayer player = spawnServerPlayer(helper);
+        ItemStack hoe = new ItemStack(Items.IRON_HOE);
+        equipTrinket(player, hoe);
+        helper.setBlock(firstPathPos, Blocks.DIRT_PATH);
+        helper.setBlock(secondPathPos, Blocks.DIRT_PATH);
+
+        helper.runAfterDelay(90, () -> {
+            BlockPos absoluteFirstPathPos = helper.absolutePos(firstPathPos);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteFirstPathPos), Direction.UP, absoluteFirstPathPos, false);
+            if (!pressUltimineKey(player, absoluteFirstPathPos)) {
+                helper.succeed();
+                return;
+            }
+
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event =
+                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
+                            player, InteractionHand.MAIN_HAND, absoluteFirstPathPos, hit);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+            helper.assertBlockPresent(Blocks.FARMLAND, firstPathPos);
+            helper.assertBlockPresent(Blocks.FARMLAND, secondPathPos);
+            helper.assertTrue(hoe.getDamageValue() == 2,
+                    "Ultimine must consume one free-hand hoe durability for every tilled dirt path");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void ultimineChainsIronTrinketFlattensGrass(GameTestHelper helper) {
+        BlockPos grassPos = new BlockPos(1, 2, 1);
+        BlockPos adjacentGrassPos = new BlockPos(2, 2, 1);
+        ServerPlayer player = spawnServerPlayer(helper);
+        ItemStack trinket = ModItems.IRON_TRINKET.get().getDefaultInstance();
+        equipTrinket(player, trinket);
+        helper.setBlock(grassPos, Blocks.GRASS_BLOCK);
+        helper.setBlock(adjacentGrassPos, Blocks.GRASS_BLOCK);
+
+        helper.runAfterDelay(90, () -> {
+            BlockPos absoluteGrassPos = helper.absolutePos(grassPos);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteGrassPos), Direction.UP, absoluteGrassPos, false);
+            if (!pressUltimineKey(player, absoluteGrassPos)) {
+                helper.succeed();
+                return;
+            }
+
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event =
+                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
+                            player, InteractionHand.MAIN_HAND, absoluteGrassPos, hit);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+            helper.assertTrue(event.isCanceled(),
+                    "Ultimine must consume an Iron Trinket right-click after it chains the flatten action");
+            helper.assertBlockPresent(Blocks.DIRT_PATH, grassPos);
+            helper.assertBlockPresent(Blocks.DIRT_PATH, adjacentGrassPos);
+            helper.assertTrue(trinket.getDamageValue() == 2,
+                    "Ultimine must consume one trinket durability for every flattened block");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void ultimineChainsFreeHandAxeStripsLogs(GameTestHelper helper) {
+        BlockPos firstLogPos = new BlockPos(1, 2, 1);
+        BlockPos secondLogPos = new BlockPos(2, 2, 1);
+        ServerPlayer player = spawnServerPlayer(helper);
+        ItemStack axe = new ItemStack(Items.IRON_AXE);
+        equipTrinket(player, axe);
+        helper.setBlock(firstLogPos, Blocks.OAK_LOG);
+        helper.setBlock(secondLogPos, Blocks.OAK_LOG);
+
+        helper.runAfterDelay(90, () -> {
+            BlockPos absoluteFirstLogPos = helper.absolutePos(firstLogPos);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteFirstLogPos), Direction.UP, absoluteFirstLogPos, false);
+            if (!pressUltimineKey(player, absoluteFirstLogPos)) {
+                helper.succeed();
+                return;
+            }
+
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event =
+                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
+                            player, InteractionHand.MAIN_HAND, absoluteFirstLogPos, hit);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+            helper.assertTrue(event.isCanceled(),
+                    "Ultimine must consume a free-hand axe right-click after it chains the strip action");
+            helper.assertBlockPresent(Blocks.STRIPPED_OAK_LOG, firstLogPos);
+            helper.assertBlockPresent(Blocks.STRIPPED_OAK_LOG, secondLogPos);
+            helper.assertTrue(axe.getDamageValue() == 2,
+                    "Ultimine must consume one free-hand axe durability for every stripped log");
+            helper.assertTrue(player.getMainHandItem().isEmpty(),
+                    "A free-hand tool must not move into the physical main hand");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void ultimineTrinketFlattensDirtBeforeHoeTills(GameTestHelper helper) {
+        BlockPos firstDirtPos = new BlockPos(1, 2, 1);
+        BlockPos secondDirtPos = new BlockPos(2, 2, 1);
+        ServerPlayer player = spawnServerPlayer(helper);
+        ItemStack trinket = ModItems.IRON_TRINKET.get().getDefaultInstance();
+        ItemStack hoe = new ItemStack(Items.IRON_HOE);
+        equipTrinket(player, 0, trinket);
+        equipTrinket(player, 1, hoe);
+        helper.setBlock(firstDirtPos, Blocks.DIRT);
+        helper.setBlock(secondDirtPos, Blocks.DIRT);
+
+        helper.runAfterDelay(90, () -> {
+            BlockPos absoluteFirstDirtPos = helper.absolutePos(firstDirtPos);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteFirstDirtPos), Direction.UP, absoluteFirstDirtPos, false);
+            if (!pressUltimineKey(player, absoluteFirstDirtPos)) {
+                helper.succeed();
+                return;
+            }
+
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock firstClick =
+                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
+                            player, InteractionHand.MAIN_HAND, absoluteFirstDirtPos, hit);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(firstClick);
+            helper.assertTrue(helper.getBlockState(firstDirtPos).is(Blocks.DIRT_PATH),
+                    "The first chain right-click on dirt must flatten it to a dirt path via the trinket");
+            helper.assertBlockPresent(Blocks.DIRT_PATH, secondDirtPos);
+            helper.assertTrue(trinket.getDamageValue() == 2,
+                    "The trinket must flatten both dirt blocks before the hoe can till");
+            helper.assertTrue(hoe.getDamageValue() == 0,
+                    "The hoe must not till during the trinket's flatten right-click");
+
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock secondClick =
+                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
+                            player, InteractionHand.MAIN_HAND, absoluteFirstDirtPos, hit);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(secondClick);
+            helper.assertTrue(helper.getBlockState(firstDirtPos).is(Blocks.FARMLAND),
+                    "A later chain right-click on the dirt path must till it to farmland via the hoe");
+            helper.assertBlockPresent(Blocks.FARMLAND, secondDirtPos);
+            helper.assertTrue(hoe.getDamageValue() == 2,
+                    "The hoe must till both dirt paths on the second right-click");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void ultimineHoeInEarlierSlotStillFlattensFirstViaTrinket(GameTestHelper helper) {
+        BlockPos firstDirtPos = new BlockPos(1, 2, 1);
+        BlockPos secondDirtPos = new BlockPos(2, 2, 1);
+        ServerPlayer player = spawnServerPlayer(helper);
+        ItemStack hoe = new ItemStack(Items.IRON_HOE);
+        ItemStack trinket = ModItems.IRON_TRINKET.get().getDefaultInstance();
+        equipTrinket(player, 0, hoe);
+        equipTrinket(player, 1, trinket);
+        helper.setBlock(firstDirtPos, Blocks.DIRT);
+        helper.setBlock(secondDirtPos, Blocks.DIRT);
+
+        helper.runAfterDelay(90, () -> {
+            BlockPos absoluteFirstDirtPos = helper.absolutePos(firstDirtPos);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteFirstDirtPos), Direction.UP, absoluteFirstDirtPos, false);
+            if (!pressUltimineKey(player, absoluteFirstDirtPos)) {
+                helper.succeed();
+                return;
+            }
+
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock firstClick =
+                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
+                            player, InteractionHand.MAIN_HAND, absoluteFirstDirtPos, hit);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(firstClick);
+            helper.assertTrue(helper.getBlockState(firstDirtPos).is(Blocks.DIRT_PATH),
+                    "The trinket must flatten dirt first even when the hoe occupies an earlier free-hand slot");
+            helper.assertBlockPresent(Blocks.DIRT_PATH, secondDirtPos);
+            helper.assertTrue(trinket.getDamageValue() == 2 && hoe.getDamageValue() == 0,
+                    "The chain must prefer the flattening trinket over the hoe regardless of slot order");
+            helper.succeed();
+        });
+    }
+
 
     private static boolean pressUltimineKey(ServerPlayer player, BlockPos targetPos) {
         try {
@@ -882,6 +1090,11 @@ public final class IronTrinketGameTests {
     private static void aimAtBlock(ServerPlayer player, BlockPos targetPos) {
         player.setPos(targetPos.getX() + 0.5D, targetPos.getY() + 0.5D, targetPos.getZ() + 3.5D);
         player.setYRot(180.0F);
+        // Ultimine's ray trace reads LivingEntity.getViewYRot -> yHeadRot, which is only
+        // synced from yRot once per tick in serverAiStep. Align head/body yaw immediately
+        // so the pick does not fire in the player's stale spawn yaw.
+        player.setYHeadRot(180.0F);
+        player.setYBodyRot(180.0F);
         player.setXRot(28.5F);
     }
 
