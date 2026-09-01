@@ -1070,6 +1070,38 @@ public final class IronTrinketGameTests {
     }
 
     @GameTest(template = "empty")
+    public static void ultimineChainsFreeHandShearsCarvePumpkins(GameTestHelper helper) {
+        BlockPos firstPumpkinPos = new BlockPos(1, 2, 1);
+        BlockPos secondPumpkinPos = new BlockPos(2, 2, 1);
+        ServerPlayer player = spawnServerPlayer(helper);
+        ItemStack shears = new ItemStack(Items.SHEARS);
+        equipTrinket(player, shears);
+        helper.setBlock(firstPumpkinPos, Blocks.PUMPKIN);
+        helper.setBlock(secondPumpkinPos, Blocks.PUMPKIN);
+
+        helper.runAfterDelay(90, () -> {
+            BlockPos absoluteFirstPumpkinPos = helper.absolutePos(firstPumpkinPos);
+            BlockHitResult hit = new BlockHitResult(Vec3.atCenterOf(absoluteFirstPumpkinPos), Direction.UP, absoluteFirstPumpkinPos, false);
+            if (!pressUltimineKey(player, absoluteFirstPumpkinPos)) {
+                helper.succeed();
+                return;
+            }
+
+            net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock event =
+                    new net.minecraftforge.event.entity.player.PlayerInteractEvent.RightClickBlock(
+                            player, InteractionHand.MAIN_HAND, absoluteFirstPumpkinPos, hit);
+            net.minecraftforge.common.MinecraftForge.EVENT_BUS.post(event);
+            helper.assertTrue(event.isCanceled(),
+                    "Ultimine must consume a free-hand shears right-click after the chain fallback carves pumpkins");
+            helper.assertBlockPresent(Blocks.CARVED_PUMPKIN, firstPumpkinPos);
+            helper.assertBlockPresent(Blocks.CARVED_PUMPKIN, secondPumpkinPos);
+            helper.assertTrue(shears.getDamageValue() == 2,
+                    "The chain fallback must carve every pumpkin via the shears' own useOn");
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
     public static void ultimineChainsIronTrinketStripsLogs(GameTestHelper helper) {
         BlockPos firstLogPos = new BlockPos(1, 2, 1);
         BlockPos secondLogPos = new BlockPos(2, 2, 1);

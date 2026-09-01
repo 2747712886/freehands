@@ -61,26 +61,28 @@ public abstract class FTBUltimineMixin {
 
             var stacks = FreeHandEvents.ultimineUseStacks(serverPlayer);
             for (var accessoryStack : stacks) {
-                boolean accessoryHandled;
+                boolean accessoryHandled = false;
                 Object handledResult = null;
-                if (accessoryStack.getItem() instanceof com.yourname.freehands.item.AbilityTrinketItem) {
-                    // Ultimine 的斧分支会把物品强转为自己的 AxeItemAccess 混入接口，
-                    // 多合一饰品无法走其分支；改为对连锁位置逐个执行饰品自身的单块逻辑
-                    // （去皮/刮锈/去蜡/铲平/熄营火/成熟藤蔓一次覆盖）。
-                    accessoryHandled = freehands$useTrinketOnCachedChain(serverPlayer, accessoryStack, pos);
-                    if (accessoryHandled) {
-                        handledResult = freehands$interruptResult();
-                    }
-                } else {
+                if (!(accessoryStack.getItem() instanceof com.yourname.freehands.item.AbilityTrinketItem)) {
+                    // 普通工具优先走 Ultimine 原生连锁（锄/剥/铲/收作物）。
                     VirtualMainHandContext.beginUsing(serverPlayer, accessoryStack);
                     try {
                         result = freehands$invokeBlockRightClick(player, InteractionHand.MAIN_HAND, pos, direction);
                     } finally {
                         VirtualMainHandContext.endUsing(serverPlayer);
                     }
-                    accessoryHandled = freehands$handled(result);
-                    if (accessoryHandled) {
+                    if (freehands$handled(result)) {
+                        accessoryHandled = true;
                         handledResult = result;
+                    }
+                }
+                if (!accessoryHandled) {
+                    // 饰品无法走 Ultimine 分支（斧分支强转 AxeItemAccess，且单选分支表达不了多动作）；
+                    // 普通工具未被 Ultimine 处理时也走这里（如剪刀雕南瓜、其他模组的自定义交互）。
+                    // 对连锁位置逐个执行物品自身 useOn，行为与单块右键一致。
+                    if (freehands$useStackOnCachedChain(serverPlayer, accessoryStack, pos)) {
+                        accessoryHandled = true;
+                        handledResult = freehands$interruptResult();
                     }
                 }
                 if (accessoryHandled) {
@@ -99,7 +101,7 @@ public abstract class FTBUltimineMixin {
 
     @SuppressWarnings("unchecked")
     @Unique
-    private boolean freehands$useTrinketOnCachedChain(ServerPlayer player, ItemStack trinket, BlockPos clickedPos) {
+    private boolean freehands$useStackOnCachedChain(ServerPlayer player, ItemStack stack, BlockPos clickedPos) {
         java.util.Collection<BlockPos> positions;
         try {
             Class<?> ultimineClass = Class.forName("dev.ftb.mods.ftbultimine.FTBUltimine");
@@ -123,13 +125,16 @@ public abstract class FTBUltimineMixin {
         }
         boolean anyHandled = false;
         for (BlockPos chainPos : positions) {
+            net.minecraft.world.level.block.state.BlockState before = player.level().getBlockState(chainPos);
             net.minecraft.world.phys.BlockHitResult chainHit = new net.minecraft.world.phys.BlockHitResult(
                     net.minecraft.world.phys.Vec3.atCenterOf(chainPos), net.minecraft.core.Direction.UP, chainPos, false);
-            VirtualMainHandContext.beginUsing(player, trinket);
+            VirtualMainHandContext.beginUsing(player, stack);
             try {
-                net.minecraft.world.item.context.UseOnContext context =
-                        new net.minecraft.world.item.context.UseOnContext(player, InteractionHand.MAIN_HAND, chainHit);
-                if (trinket.useOn(context).consumesAction()) {
+                player.gameMode.useItemOn(player, player.level(), stack, InteractionHand.MAIN_HAND, chainHit);
+                // 仅以方块状态真实变化判定生效：递归事件被 Ultimine 处理时返回的
+                // interruptFalse 映射为 FAIL（consumesAction()==false），不能依赖返回值；
+                // 状态变化判据同时天然排除开箱等 GUI 交互。
+                if (player.level().getBlockState(chainPos) != before) {
                     anyHandled = true;
                 }
             } finally {

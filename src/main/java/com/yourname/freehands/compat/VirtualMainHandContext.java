@@ -39,13 +39,6 @@ public final class VirtualMainHandContext {
         }
     }
 
-    public static Optional<ItemStack> beginUsing(Player player) {
-        return FreeHandEvents.selectedUseStack(player).map(stack -> {
-            beginUsing(player, stack);
-            return stack;
-        });
-    }
-
     public static void beginUsing(Player player, ItemStack stack) {
         ACTIVE_MAIN_HAND_STACKS.get().push(new Entry(player.getUUID(), stack, true));
     }

@@ -375,9 +375,16 @@ public final class FreeHandEvents {
     }
 
     private static boolean canUseOnBlock(ItemStack stack) {
-        return stack.getItem() instanceof AbilityTrinketItem
+        if (stack.getItem() instanceof AbilityTrinketItem
                 || stack.getItem() instanceof DiggerItem
-                || stack.getItem() instanceof ShearsItem;
+                || stack.getItem() instanceof ShearsItem) {
+            return true;
+        }
+        // 兼容其他模组不继承 DiggerItem/ShearsItem 但声明了标准动作的自定义工具。
+        return stack.canPerformAction(net.minecraftforge.common.ToolActions.HOE_TILL)
+                || stack.canPerformAction(net.minecraftforge.common.ToolActions.AXE_STRIP)
+                || stack.canPerformAction(net.minecraftforge.common.ToolActions.SHOVEL_FLATTEN)
+                || stack.canPerformAction(net.minecraftforge.common.ToolActions.SHEARS_CARVE);
     }
 
     private static boolean providesArmor(ItemStack stack) {
