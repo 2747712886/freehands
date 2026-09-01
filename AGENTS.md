@@ -5,6 +5,7 @@
 - 默认分支 `1.20.1`（2026-07-20 由 `master` 改名，保留完整历史）。
 - 本仓库在**多台电脑间同步开发**（如 `E:\mod\freehands`、`D:\mod\freehands`），盘符因人而异，文档一律用相对路径、不写死。
 - 首个公开 Release：tag `1.20.1-0.1.0`，标题 `Free Hands 0.1.0 for Minecraft Forge 1.20.1`，产物 `freehands-forge-1.20.1-0.1.0.jar`。后续发布前先跑完整 GameTest 与 `build`，并把确切 tag/标题/产物名记录在此。
+- 第二个 Release：tag `1.20.1-0.2.0`（2026-09-01，提交 `a1057f5`），标题 `Free Hands 0.2.0 for Minecraft Forge 1.20.1`，产物 `freehands-forge-1.20.1-0.2.0.jar`。内容：Ultimine 连锁兼容完善（土径锄地标签、孪生包去重、饰品连锁全动作+音效+挥臂）、连锁兜底通用化、自定义工具识别、坐标版音效。发布前 47/47 GameTest 全绿、`build` 通过。
 
 ## 美术管线
 
@@ -138,10 +139,10 @@
 - 解放槽工具的效率/时运/精准采集/耐久附魔、武器的锋利/火焰附加/抢夺/耐久附魔需手动进游戏验证。
 <!-- HANDOFF-START -->
 ## 交接区（自动维护，请勿手改本块）
-- 更新时间：2026-09-01 09:10
-- 本次完成（代码审查+兼容性增强，47/47 全绿、build 通过）：① 连锁兜底通用化：Ultimine 未处理的交互（剪刀雕南瓜、其他模组自定义右键）与饰品一样走"逐位置完整 `gameMode.useItemOn`"，以方块状态变化判定生效（关键坑：Ultimine 的 `interruptFalse.asMinecraft()` 是 `FAIL`，`consumesAction()==false`，不能依赖返回值）；② `canUseOnBlock` 增加 ToolAction 识别（HOE_TILL/AXE_STRIP/SHOVEL_FLATTEN/SHEARS_CARVE），不继承原版工具类的模组工具也能进解放槽右键系统；③ `LevelMixin` 补坐标版 `playSound` 重载的"排除发声者"解除；④ 删除 `VirtualMainHandContext.beginUsing(Player)` 死代码；⑤ 新增 `ultimineChainsFreeHandShearsCarvePumpkins` 回归测试。审查确认无其他功能性 bug（护甲耐久按减伤后数值扣，比原版宽松，属有意为之的平衡差异，未改）。
-- 关键决策：连锁中"其他模组右键交互"只要走标准 use 流程即自动可用；雕南瓜等方块侧交互必须走完整 `useItemOn`（仅物品 `useOn` 会漏）；GUI 交互（开箱）不改方块状态，天然不会被误判为连锁动作。
-- 未完成 / 下一步：待用户游戏内抽测连锁剪刀雕南瓜/模组工具交互；确认后提交推送（上一批 `16443f6`、`86addc6`、`d15095c` 已推）。
-- 入手点：未提交改动 = AGENTS.md、FreeHandEvents（canUseOnBlock）、FTBUltimineMixin（通用兜底）、LevelMixin（双 playSound 重载）、VirtualMainHandContext（删死代码）、IronTrinketGameTests（+1 测试）。
+- 更新时间：2026-09-01 09:55
+- 本次完成：**已发布 0.2.0**。版本号 `gradle.properties` 0.1.0→0.2.0；发布前 47/47 GameTest 全绿、`build` 通过；提交 `a1057f5`，tag `1.20.1-0.2.0` 已推，GitHub Release 已发（产物 `freehands-forge-1.20.1-0.2.0.jar`），发布基线已记录。本版内容：Ultimine 连锁兼容完善 + 连锁兜底通用化 + 自定义工具识别 + 音效/挥臂补全 + 孪生包去重。
+- 关键决策：连锁兜底"其他模组右键交互走标准 use 流程即自动可用"；雕南瓜等方块侧交互必须走完整 `useItemOn`（仅物品 `useOn` 会漏）；判定生效看方块状态变化而非返回值（`interruptFalse.asMinecraft()` 是 `FAIL`）。
+- 未完成 / 下一步：无阻塞。待用户游戏内抽测 0.2.0（连锁剪刀雕南瓜、模组自定义工具连锁、饰品+锄头两步流程）。
+- 入手点：工作树干净，`1.20.1` 与远端同步于 `a1057f5`。
 - 维护规则：实质工作收尾时整块覆盖本标记区（agents-md-keeper skill）。
 <!-- HANDOFF-END -->
