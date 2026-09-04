@@ -1,6 +1,11 @@
 pluginManagement {
     repositories {
         maven {
+            name = 'NeoForged'
+            url = 'https://maven.neoforged.net/releases'
+        }
+        gradlePluginPortal()
+        maven {
             name = 'AliyunGradlePlugin'
             url = 'https://maven.aliyun.com/repository/gradle-plugin/'
         }
@@ -8,11 +13,6 @@ pluginManagement {
             name = 'AliyunPublic'
             url = 'https://maven.aliyun.com/repository/public/'
         }
-        maven {
-            name = 'MinecraftForge'
-            url = 'https://maven.minecraftforge.net/'
-        }
-        gradlePluginPortal()
         mavenCentral()
     }
 }

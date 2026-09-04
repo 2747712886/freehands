@@ -3,5 +3,5 @@
   "template": { "item": "minecraft:netherite_upgrade_smithing_template" },
   "base": { "item": "freehands:diamond_trinket" },
   "addition": { "item": "minecraft:netherite_block" },
-  "result": { "item": "freehands:netherite_trinket" }
+  "result": { "id": "freehands:netherite_trinket", "count": 1 }
 }

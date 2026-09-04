@@ -1,368 +1,156 @@
 plugins {
-    id 'eclipse'
+    id 'java-library'
     id 'idea'
     id 'maven-publish'
-    id 'net.minecraftforge.gradle' version '[6.0,6.2)'
-    id 'org.spongepowered.mixin' version '0.7.38'
+    id 'net.neoforged.moddev' version '2.0.146'
 }
 
 version = mod_version
 group = mod_group_id
 
 base {
-    archivesName = "${mod_id}-forge-${minecraft_version}"
+    archivesName = "${mod_id}-neoforge-${minecraft_version}"
 }
 
-// Mojang ships Java 17 to end users in 1.18+, so your mod should target Java 17.
-java.toolchain.languageVersion = JavaLanguageVersion.of(17)
+// Minecraft 1.21.1 ships Java 21 to end users, so the mod targets Java 21.
+// The foojay-resolver plugin (settings.gradle) auto-provisions a JDK 21 toolchain.
+java {
+    toolchain.languageVersion = JavaLanguageVersion.of(21)
+}
 
 println "Java: ${System.getProperty 'java.version'}, JVM: ${System.getProperty 'java.vm.version'} (${System.getProperty 'java.vendor'}), Arch: ${System.getProperty 'os.arch'}"
-minecraft {
-    // The mappings can be changed at any time and must be in the following format.
-    // Channel:   Version:
-    // official   MCVersion             Official field/method names from Mojang mapping files
-    // parchment  YYYY.MM.DD-MCVersion  Open community-sourced parameter names and javadocs layered on top of official
-    //
-    // You must be aware of the Mojang license when using the 'official' or 'parchment' mappings.
-    // See more information here: https://github.com/MinecraftForge/MCPConfig/blob/master/Mojang.md
-    //
-    // Parchment is an unofficial project maintained by ParchmentMC, separate from MinecraftForge
-    // Additional setup is needed to use their mappings: https://parchmentmc.org/docs/getting-started
-    //
-    // Use non-default mappings at your own risk. They may not always work.
-    // Simply re-run your setup task after changing the mappings to update your workspace.
-    mappings channel: mapping_channel, version: mapping_version
-
-    // When true, this property will have all Eclipse/IntelliJ IDEA run configurations run the "prepareX" task for the given run configuration before launching the game.
-    // In most cases, it is not necessary to enable.
-    // enableEclipsePrepareRuns = true
-    // enableIdeaPrepareRuns = true
-
-    // This property allows configuring Gradle's ProcessResources task(s) to run on IDE output locations before launching the game.
-    // It is REQUIRED to be set to true for this template to function.
-    // See https://docs.gradle.org/current/dsl/org.gradle.language.jvm.tasks.ProcessResources.html
-    copyIdeResources = true
-
-    // When true, this property will add the folder name of all declared run configurations to generated IDE run configurations.
-    // The folder name can be set on a run configuration using the "folderName" property.
-    // By default, the folder name of a run configuration is the name of the Gradle project containing it.
-    // generateRunFolders = true
-
-    // This property enables access transformers for use in development.
-    // They will be applied to the Minecraft artifact.
-    // The access transformer file can be anywhere in the project.
-    // However, it must be at "META-INF/accesstransformer.cfg" in the final mod jar to be loaded by Forge.
-    // This default location is a best practice to automatically put the file in the right place in the final jar.
-    // See https://docs.minecraftforge.net/en/latest/advanced/accesstransformers/ for more information.
-    // accessTransformer = file('src/main/resources/META-INF/accesstransformer.cfg')
-
-    // Default run configurations.
-    // These can be tweaked, removed, or duplicated as needed.
-    runs {
-        // applies to all the run configs below
-        configureEach {
-            workingDirectory project.file('run')
-
-            // Recommended logging data for a userdev environment
-            // The markers can be added/remove as needed separated by commas.
-            // "SCAN": For mods scan.
-            // "REGISTRIES": For firing of registry events.
-            // "REGISTRYDUMP": For getting the contents of all registries.
-            property 'forge.logging.markers', 'REGISTRIES'
-
-            // Recommended logging level for the console
-            // You can set various levels here.
-            // Please read: https://stackoverflow.com/questions/2031163/when-to-use-the-different-log-levels
-            property 'forge.logging.console.level', 'debug'
-            property 'mixin.env.remapRefMap', 'true'
-            property 'mixin.env.refMapRemappingFile', "${buildDir}/createSrgToMcp/output.srg"
-
-            mods {
-                "${mod_id}" {
-                    source sourceSets.main
-                }
-            }
-        }
-
-        client {
-            // Comma-separated list of namespaces to load gametests from. Empty = all namespaces.
-            property 'forge.enabledGameTestNamespaces', mod_id
-        }
-
-        server {
-            property 'forge.enabledGameTestNamespaces', mod_id
-            args '--nogui'
-        }
-
-        // This run config launches GameTestServer and runs all registered gametests, then exits.
-        // By default, the server will crash when no gametests are provided.
-        // The gametest system is also enabled by default for other run configs under the /test command.
-        gameTestServer {
-            property 'forge.enabledGameTestNamespaces', mod_id
-        }
-
-        data {
-            // example of overriding the workingDirectory set in configureEach above
-            workingDirectory project.file('run-data')
-
-            // Specify the modid for data generation, where to output the resulting resource, and where to look for existing resources.
-            args '--mod', mod_id, '--all', '--output', file('src/generated/resources/'), '--existing', file('src/main/resources/')
-        }
-    }
-}
-
-// Include resources generated by data generators.
-sourceSets.main.resources { srcDir 'src/generated/resources' }
-
-mixin {
-    add sourceSets.main, "${mod_id}.refmap.json"
-    config "${mod_id}.mixins.json"
-}
 
 repositories {
-    // Put repositories for dependencies here
-    // ForgeGradle automatically adds the Forge maven and Maven Central for you
-    maven {
-        name = 'AliyunPublic'
-        url = 'https://maven.aliyun.com/repository/public/'
-    }
-    maven {
-        name = 'AliyunCentral'
-        url = 'https://maven.aliyun.com/repository/central/'
-    }
+    mavenCentral()
+    // Curios (TheIllusiveC4)
     maven {
         name = 'TheIllusiveC4'
         url = 'https://maven.theillusivec4.top/'
     }
-    flatDir {
-        dir 'run/dev-mods'
-    }
-    // If you have mod jar dependencies in ./libs, you can declare them as a repository like so.
-    // See https://docs.gradle.org/current/userguide/declaring_repositories.html#sub:flat_dir_resolver
-    // flatDir {
-    //     dir 'libs'
-    // }
 }
 
-dependencies {
-    // Specify the version of Minecraft to use.
-    // Any artifact can be supplied so long as it has a "userdev" classifier artifact and is a compatible patcher artifact.
-    // The "userdev" classifier will be requested and setup by ForgeGradle.
-    // If the group id is "net.minecraft" and the artifact id is one of ["client", "server", "joined"],
-    // then special handling is done to allow a setup of a vanilla dependency without the use of an external repository.
-    minecraft "net.minecraftforge:forge:${minecraft_version}-${forge_version}"
-    annotationProcessor 'org.spongepowered:mixin:0.8.5:processor'
-    implementation fg.deobf("top.theillusivec4.curios:curios-forge:${curios_version}")
-
-    // Example mod dependency with JEI - using fg.deobf() ensures the dependency is remapped to your development mappings
-    // The JEI API is declared for compile time use, while the full JEI artifact is used at runtime
-    // compileOnly fg.deobf("mezz.jei:jei-${mc_version}-common-api:${jei_version}")
-    // compileOnly fg.deobf("mezz.jei:jei-${mc_version}-forge-api:${jei_version}")
-    // runtimeOnly fg.deobf("mezz.jei:jei-${mc_version}-forge:${jei_version}")
-
-    // Example mod dependency using a mod jar from ./libs with a flat dir repository
-    // This maps to ./libs/coolmod-${mc_version}-${coolmod_version}.jar
-    // The group id is ignored when searching -- in this case, it is "blank"
-    // implementation fg.deobf("blank:coolmod-${mc_version}:${coolmod_version}")
-
-    // For more info:
-    // http://www.gradle.org/docs/current/userguide/artifact_dependencies_tutorial.html
-    // http://www.gradle.org/docs/current/userguide/dependency_management.html
-}
-
-def developmentClientMods = [
-        [
-                filename: "jei-1.20.1-forge-${jei_version}.jar",
-                url     : "https://cdn.modrinth.com/data/u6dRKJwZ/versions/vnxhddW4/jei-1.20.1-forge-${jei_version}.jar",
-                sha512  : '5536d0a414150a078a5b4ae7e0d2b660fcee63b968a56cec1bcac5887cb352cd3d734e714f51778554d6c46cb0cf72555b41dea34d8649f90d71e94ddbf1e471'
-        ],
-        [
-                filename: "imblocker-${imblocker_version}+1.20.jar",
-                url     : "https://cdn.modrinth.com/data/WMDesFsZ/versions/jqQmD1Dx/IMBlocker_${imblocker_version}%2B1.20.jar",
-                sha512  : 'abf42bb8dffd22e00b5d71bede806772811245947e0061a9b3547415c55852557256e792e39224b11af0f6792c7cae98fddf728672367a6a24c8e169fe9fcd3e'
-        ],
-        [
-                filename: "jecharacters-1.20.1-forge-${just_enough_characters_version}.jar",
-                url     : "https://cdn.modrinth.com/data/I7k4B65h/versions/IU9c4v4I/jecharacters-1.20.1-forge-${just_enough_characters_version}.jar",
-                sha512  : 'e2834b5cb37e413ced9e0e3706da418536b5feb8d204334b84e2d3f315d9d5866d16a10a5babe6c38563c62f375470416af20aaa909ab207b7194888ebb46f8e'
-        ],
-        // FTB Ultimine 连锁采集兼容测试三件套（architectury 走 Modrinth，两个 FTB jar 走 CurseForge CDN，
-        // sha1 与 packwiz 社区清单一致，来源已验证）
-        [
-                filename: "architectury-9.2.14-forge.jar",
-                url     : "https://cdn.modrinth.com/data/lhGA9TYQ/versions/1MKTLiiG/architectury-9.2.14-forge.jar",
-                sha512  : 'cf67f2050cafa00f0bee42e6d7bef77fdb808ac4f71742f7b4d6d5c1e6ffb49561a5a252f332d2b78a9767bdb5faa284611790dba303fbdc736ae36d794f61c7'
-        ],
-        [
-                filename: "ftb-library-forge-2001.2.12.jar",
-                url     : "https://mediafilez.forgecdn.net/files/7296/748/ftb-library-forge-2001.2.12.jar",
-                sha512  : '6c2c88ce9e456197895b32a8995adf13a1923c5a35c967593308af1322bb47136fc92305f350544febcc05d0227d2a3f282d9e9d4c8ec5aacdc36176af78809b'
-        ],
-        [
-                filename: "ftb-ultimine-forge-2001.1.8.jar",
-                url     : "https://mediafilez.forgecdn.net/files/7880/472/ftb-ultimine-forge-2001.1.8.jar",
-                sha512  : '57e04a50f96e533d9f92aaa26861ec78709681faf98812b666f7240cb265140f6ac0c5f28025adc4961d8e51b22f65c3eead17bdba2ea7f2929815cafbfc65e5'
-        ]
-]
-
-def sha512 = { File file ->
-    java.security.MessageDigest.getInstance('SHA-512').digest(file.bytes).encodeHex().toString()
-}
-
-tasks.register('downloadDevelopmentClientMods') {
-    group = 'forgegradle runs'
-    description = 'Downloads and verifies client-only test mods into run/dev-mods.'
-    outputs.upToDateWhen { false }
-
-    doLast {
-        def modsDirectory = file('run/dev-mods')
-        modsDirectory.mkdirs()
-
-        developmentClientMods.each { mod ->
-            def target = new File(modsDirectory, mod.filename)
-            if (target.isFile() && sha512(target).equalsIgnoreCase(mod.sha512)) {
-                return
-            }
-
-            def temporary = new File(modsDirectory, "${mod.filename}.part")
-            logger.lifecycle("Downloading development client mod ${mod.filename}")
-            exec {
-                executable 'curl.exe'
-                args '--fail', '--location', '--silent', '--show-error',
-                        '--connect-timeout', '30', '--max-time', '300',
-                        '--output', temporary.absolutePath, mod.url
-            }
-
-            if (!sha512(temporary).equalsIgnoreCase(mod.sha512)) {
-                temporary.delete()
-                throw new GradleException("SHA-512 verification failed for ${mod.filename}")
-            }
-
-            java.nio.file.Files.move(
-                    temporary.toPath(),
-                    target.toPath(),
-                    java.nio.file.StandardCopyOption.REPLACE_EXISTING
-            )
-        }
-    }
-}
-
-tasks.configureEach {
-    if (name == 'prepareRunClient' || name == 'runClient') {
-        dependsOn tasks.named('downloadDevelopmentClientMods')
-    }
-}
-
-// Minecraft 1.20.1 GameTest loads SNBT fixtures from the run directory rather
-// than a data pack. Keep the source fixture versioned and stage it before each
-// GameTest-server launch.
+// GameTest 结构夹具：1.21.1 仍从运行目录读取 SNBT，运行前 staging 到 run/。
 def copyGameTestStructures = tasks.register('copyGameTestStructures', Copy) {
     from('src/gametest/resources')
     into('run')
 }
 
-tasks.configureEach {
-    if (name == 'prepareRunGameTestServer') {
-        dependsOn copyGameTestStructures
+neoForge {
+    version = project.neo_version
+
+    runs {
+        client {
+            client()
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        server {
+            server()
+            programArgument '--nogui'
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+        }
+        gameTestServer {
+            // RunModel 没有 gameTestServer() 方法，用 type 字符串指定运行类型。
+            type = "gameTestServer"
+            gameDirectory = file('run')
+            systemProperty 'neoforge.enabledGameTestNamespaces', project.mod_id
+            taskBefore(copyGameTestStructures)
+        }
+        data {
+            data()
+            programArguments.addAll '--mod', project.mod_id, '--all',
+                    '--output', file('src/generated/resources/').absolutePath,
+                    '--existing', file('src/main/resources/').absolutePath
+        }
+    }
+
+    mods {
+        "${mod_id}" {
+            sourceSet sourceSets.main
+        }
     }
 }
 
-def runningGameTestServer = gradle.startParameter.taskNames.any { taskName ->
-    taskName == 'runGameTestServer' || taskName.endsWith(':runGameTestServer')
+dependencies {
+    // Curios (NeoForge) — provides the free_hand slot capability used by the core logic.
+    implementation "top.theillusivec4.curios:curios-neoforge:${curios_version}"
 }
-def ultimineCompatibilityJarsAvailable = [
-        file('run/dev-mods/architectury-9.2.14-forge.jar'),
-        file('run/dev-mods/ftb-library-forge-2001.2.12.jar'),
-        file('run/dev-mods/ftb-ultimine-forge-2001.1.8.jar')
-].every { it.isFile() }
-def enableUltimineCompatibility = providers.gradleProperty('enableUltimineCompatibility')
-        .map { it.toBoolean() }
-        .orElse(ultimineCompatibilityJarsAvailable)
-        .get()
 
-// 客户端专用 devmods（JEI/IMBlocker/JEC）仅在三个 jar 实际存在时加入解析链，
-// 且只进客户端运行配置：GameTestServer 是专用服务端，加载它们会因引用客户端类
-// （如 net.minecraft.client.searchtree.SuffixArray）而崩溃，必须排除。
-// 任何 unresolvable 的 fg.deobf 依赖都会毒化共享的 :__obfuscated 管线、让 Curios
-// 连带失败，因此缺 jar 时必须跳过而非报错。
-def clientOnlyDevModsAvailable = [
-        file("run/dev-mods/jei-1.20.1-forge-${jei_version}.jar"),
-        file("run/dev-mods/imblocker-${imblocker_version}+1.20.jar"),
-        file("run/dev-mods/jecharacters-1.20.1-forge-${just_enough_characters_version}.jar")
-].every { it.isFile() }
-if (clientOnlyDevModsAvailable && !runningGameTestServer) {
+// FTB Ultimine 连锁兼容测试依赖（NeoForge 1.21.1）：仅当三 jar 齐备时加入运行时类路径，不进发布产物。
+// 缺失时 FTBUltimineMixin（@Pseudo）自动跳过、12 个 Ultimine 测试优雅跳过（pressUltimineKey 返回 false）。
+// jar 来源：ftb-ultimine/ftb-library 走 FTB maven(releases, 2101.1.x=MC1.21.1)，architectury 走 Modrinth CDN。
+def ftbUltimineNeoForgeJars = [
+        file('run/dev-mods/architectury-neoforge-13.0.11.jar'),
+        file('run/dev-mods/ftb-library-neoforge-2101.1.35.jar'),
+        file('run/dev-mods/ftb-ultimine-neoforge-2101.1.15.jar'),
+]
+if (ftbUltimineNeoForgeJars.every { it.isFile() }) {
     dependencies {
-        runtimeOnly fg.deobf("devmods:jei-1.20.1-forge:${jei_version}")
-        runtimeOnly fg.deobf("devmods:imblocker:${imblocker_version}+1.20")
-        runtimeOnly fg.deobf("devmods:jecharacters-1.20.1-forge:${just_enough_characters_version}")
+        runtimeOnly files(ftbUltimineNeoForgeJars)
     }
 }
 
-if (enableUltimineCompatibility) {
-    dependencies {
-        runtimeOnly fg.deobf('devmods:architectury:9.2.14-forge')
-        runtimeOnly fg.deobf('devmods:ftb-library-forge:2001.2.12')
-        runtimeOnly fg.deobf('devmods:ftb-ultimine-forge:2001.1.8')
+// run/dev-mods 不进版本库：换机器时 12 个连锁测试会静默跳过，用本任务按 sha1 校验重新拉取。
+// 客户端专用 devmods（JEI / IMBlocker / JustEnoughCharacters）尚未移植到 1.21.1，仅手工验证时需要。
+// 注意：architectury 同版本号在 Modrinth 与 maven.architectury.dev 上的包字节不同，此处一律按 maven 发布的 sha1 校验。
+tasks.register('downloadDevelopmentMods') {
+    group = 'freehands'
+    description = '下载 FTB Ultimine 连锁兼容测试所需的 NeoForge 1.21.1 开发模组到 run/dev-mods。'
+    def artifacts = [
+            [url   : 'https://maven.ftb.dev/releases/dev/ftb/mods/ftb-ultimine-neoforge/2101.1.15/ftb-ultimine-neoforge-2101.1.15.jar',
+             name  : 'ftb-ultimine-neoforge-2101.1.15.jar',
+             sha1  : 'c96a7cc0b52bf919660ea61c1536cebd9d5773b3'],
+            [url   : 'https://maven.ftb.dev/releases/dev/ftb/mods/ftb-library-neoforge/2101.1.35/ftb-library-neoforge-2101.1.35.jar',
+             name  : 'ftb-library-neoforge-2101.1.35.jar',
+             sha1  : '9922fa358983120edeed22194bf02bcf9c859fbb'],
+            [url   : 'https://maven.architectury.dev/dev/architectury/architectury-neoforge/13.0.11/architectury-neoforge-13.0.11.jar',
+             name  : 'architectury-neoforge-13.0.11.jar',
+             sha1  : '46f0d2f3126ed240c0cb0d7616e5ea2f92eefd5f'],
+    ]
+    outputs.upToDateWhen { artifacts.every { file("run/dev-mods/${it.name}").isFile() } }
+    doLast {
+        artifacts.each { artifact ->
+            def target = file("run/dev-mods/${artifact.name}")
+            if (target.isFile()) {
+                println "已存在，跳过 ${artifact.name}"
+                return
+            }
+            target.parentFile.mkdirs()
+            new URI(artifact.url).toURL().withInputStream { input ->
+                target.withOutputStream { output -> output << input }
+            }
+            def digest = java.security.MessageDigest.getInstance('SHA-1')
+                .digest(target.bytes).collect { String.format('%02x', it) }.join()
+            if (digest != artifact.sha1) {
+                target.delete()
+                throw new GradleException("${artifact.name} sha1 校验失败：期望 ${artifact.sha1}，实际 ${digest}")
+            }
+            println "已下载 ${artifact.name}"
+        }
     }
 }
 
-// This block of code expands all declared replace properties in the specified resource targets.
-// A missing property will result in an error. Properties are expanded using ${} Groovy notation.
-// When "copyIdeResources" is enabled, this will also run before the game launches in IDE environments.
-// See https://docs.gradle.org/current/dsl/org.gradle.language.jvm.tasks.ProcessResources.html
-tasks.named('processResources', ProcessResources).configure {
+// Expand mod metadata placeholders into neoforge.mods.toml at processResources time.
+tasks.withType(ProcessResources).configureEach {
     var replaceProperties = [
-            minecraft_version: minecraft_version, minecraft_version_range: minecraft_version_range,
-            forge_version: forge_version, forge_version_range: forge_version_range,
-            loader_version_range: loader_version_range,
-            mod_id: mod_id, mod_name: mod_name, mod_license: mod_license, mod_version: mod_version,
-            mod_authors: mod_authors, mod_description: mod_description,
+            minecraft_version      : minecraft_version,
+            minecraft_version_range: minecraft_version_range,
+            neo_version            : neo_version,
+            neo_version_range      : neo_version_range,
+            loader_version_range   : loader_version_range,
+            mod_id                 : mod_id,
+            mod_name               : mod_name,
+            mod_license            : mod_license,
+            mod_version            : mod_version,
+            mod_authors            : mod_authors,
+            mod_description        : mod_description,
     ]
     inputs.properties replaceProperties
 
-    filesMatching(['META-INF/mods.toml', 'pack.mcmeta']) {
-        expand replaceProperties + [project: project]
-    }
-}
-
-// Example for how to get properties into the manifest for reading at runtime.
-tasks.named('jar', Jar).configure {
-    manifest {
-        attributes([
-                'Specification-Title'     : mod_id,
-                'Specification-Vendor'    : mod_authors,
-                'Specification-Version'   : '1', // We are version 1 of ourselves
-                'Implementation-Title'    : project.name,
-                'Implementation-Version'  : project.jar.archiveVersion,
-                'Implementation-Vendor'   : mod_authors,
-                'Implementation-Timestamp': new Date().format("yyyy-MM-dd'T'HH:mm:ssZ"),
-                'MixinConfigs'            : "${mod_id}.mixins.json"
-        ])
-    }
-
-    // This is the preferred method to reobfuscate your jar file
-    finalizedBy 'reobfJar'
-}
-
-// However if you are in a multi-project build, dev time needs unobfed jar files, so you can delay the obfuscation until publishing by doing:
-// tasks.named('publish').configure {
-//     dependsOn 'reobfJar'
-// }
-
-// Example configuration to allow publishing using the maven-publish plugin
-publishing {
-    publications {
-        register('mavenJava', MavenPublication) {
-            artifact jar
-        }
-    }
-    repositories {
-        maven {
-            url "file://${project.projectDir}/mcmodsrepo"
-        }
+    filesMatching(['META-INF/neoforge.mods.toml']) {
+        expand replaceProperties
     }
 }
 
 tasks.withType(JavaCompile).configureEach {
-    options.encoding = 'UTF-8' // Use the UTF-8 charset for Java compilation
+    options.encoding = 'UTF-8'
 }

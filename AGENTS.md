@@ -139,10 +139,15 @@
 - 解放槽工具的效率/时运/精准采集/耐久附魔、武器的锋利/火焰附加/抢夺/耐久附魔需手动进游戏验证。
 <!-- HANDOFF-START -->
 ## 交接区（自动维护，请勿手改本块）
-- 更新时间：2026-09-01 09:55
-- 本次完成：**已发布 0.2.0**。版本号 `gradle.properties` 0.1.0→0.2.0；发布前 47/47 GameTest 全绿、`build` 通过；提交 `a1057f5`，tag `1.20.1-0.2.0` 已推，GitHub Release 已发（产物 `freehands-forge-1.20.1-0.2.0.jar`），发布基线已记录。本版内容：Ultimine 连锁兼容完善 + 连锁兜底通用化 + 自定义工具识别 + 音效/挥臂补全 + 孪生包去重。
-- 关键决策：连锁兜底"其他模组右键交互走标准 use 流程即自动可用"；雕南瓜等方块侧交互必须走完整 `useItemOn`（仅物品 `useOn` 会漏）；判定生效看方块状态变化而非返回值（`interruptFalse.asMinecraft()` 是 `FAIL`）。
-- 未完成 / 下一步：无阻塞。待用户游戏内抽测 0.2.0（连锁剪刀雕南瓜、模组自定义工具连锁、饰品+锄头两步流程）。
-- 入手点：工作树干净，`1.20.1` 与远端同步于 `a1057f5`。
+- 更新时间：2026-09-04 09:02
+- 当前分支：`1.21.1`（从 `1.20.1` HEAD 建）。**全部改动仍在工作树未提交**（含 1.20.1 整理改动，用户选"不单独提交"）。1.20.1 源码快照 `.port-ref-1.20.1/`；`.port-ref/`（查阅 NeoForge API 用）与 `.cowork-temp/` 本次已补进 `.gitignore`。
+- 本次完成：**NeoForge 1.21.1 移植整体完成**。① `FTBUltimineMixin` 连锁兼容 12 个测试**真跑通过**（此前是优雅跳过）；② **抢夺子功能已恢复**（新增 `EnchantmentHelperMixin`，不再是暂砍状态）；③ `runGameTestServer` **48/48 全绿**、`build` 通过并产出 `build/libs/freehands-neoforge-1.21.1-0.2.0.jar`；④ 新增 `downloadDevelopmentMods` 任务（三件套按 sha1 从 maven 拉取），并已端到端验证：移走 `run/dev-mods` 三 jar → 重下 → 重跑仍 48/48。
+- 🔴 连锁静默失效的根因（下次遇到务必先看）：Architectury `PlayerHooks.isFake` 的定义是 `player instanceof ServerPlayer && player.getClass() != ServerPlayer.class`，而 FTB Ultimine 2101 在 `canUltimine`/`blockRightClick` **入口**就判 isFake。**GameTest 里的连锁玩家必须是 `ServerPlayer` 本体**；旧的 `TestServerPlayer` 子类会让 12 个连锁测试表现为"什么都不发生、方块不变"。挥臂发包改由 `SilentServerGamePacketListener` 吞掉，不再需要子类覆写 `swing`。
+- 2101.1.15 内部结构（对照 1.20.1 的 2001.1.8）：单例改为公开 `getInstance()`（私有字段 `instance` 仍在但不可反射）；右键动作由 `PlatformMethodsImpl` 的 if-else 改为可插拔 `RightClickHandler`，注册顺序写死在 `RightClickDispatcher`＝**斧→锹→锄→作物**，且各处理器统一 `player.getMainHandItem().useOn(...)`（**不再强转 `AxeItemAccess`**，正文《Ultimine 兼容测试》里"饰品无法走 Ultimine 分支"的说法只对 1.20.1 成立）。`cachedPos`/`cachedPositions()`/`isPressed()`/`getOrCreatePlayerData`/`setKeyPressed` 名字未变 → mixin 与反射几乎零改动。饰品仍保留逐位置 `useItemOn` 兜底：为的是本模组自己的 `rightClickPriority`（锹→斧→锄）不被 FTB 固定顺序覆盖，以及雕南瓜等 FTB 无内置处理器的动作。
+- 抢夺恢复做法：NeoForge 1.21.1 删了 `LootingLevelEvent`；战利品经 `EnchantedCountIncreaseFunction` → `EnchantmentHelper.getEnchantmentLevel(Holder, LivingEntity)`（抢夺 slots=mainhand，看不到解放槽）。新 mixin 仅在"查询 LOOTING 且实体是 Player"时把结果抬到 `FreeHandEvents.freeHandEnchantmentLevel(player, LOOTING)`（**只升不降**，其它附魔/实体不受影响）。回归测试 `freeHandSwordLootingCountsForMobDrops`（1.20.1 时代抢夺无测试，本次补上）。
+- 其它修正：`AbilityTrinketItem.getSlotsTooltip` 迁到 Curios 9.5.1 带 `Item.TooltipContext` 的新重载（消除 `[removal]` 告警，现编译零告警）；architectury 同版本号在 Modrinth 与 `maven.architectury.dev` 上**字节不同**（584734 vs 592446），下载任务按 maven 发布的 sha1 校验。
+- 环境（不变，照做）：所有 gradlew 命令前置 `JAVA_HOME="/d/Gradle/jdk-21-temurin"`（本机无 Java 21 系统安装、GitHub raw 不通；Temurin 21 来自清华 TUNA 镜像，GRADLE_USER_HOME=`D:/Gradle/.gradle` 已禁 auto-download）。增量 `build` ~8s、`runGameTestServer` ~55s。反编译第三方 jar 用缓存里的 vineflower 1.10.1（比啃 javap 快）。
+- 未完成 / 下一步：① 1.21.1 分支的提交与推送（需用户确认，提交前按惯例先跑全套）；② dev 客户端手工验收——Curios 两槽 UI、连锁右键手感、挥臂/音效与客户端预测（GameTest 覆盖不到）；③ 客户端专用 devmods（JEI/IMBlocker/JustEnoughCharacters）尚未移植到 1.21.1；④ 正文《常用命令》《验证清单》《回归测试要点》仍是 1.20.1/Forge 口径（未改，因 skill 约定标记区外不动），若要切 1.21.1 口径需用户点头。
+- 入手点：`JAVA_HOME=/d/Gradle/jdk-21-temurin ./gradlew build runGameTestServer`（应 48/48）；缺 devmods 时先 `./gradlew downloadDevelopmentMods`；1.20.1 对照 `.port-ref-1.20.1/`。
 - 维护规则：实质工作收尾时整块覆盖本标记区（agents-md-keeper skill）。
 <!-- HANDOFF-END -->

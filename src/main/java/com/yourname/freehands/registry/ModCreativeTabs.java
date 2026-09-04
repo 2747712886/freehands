@@ -5,23 +5,28 @@ import net.minecraft.core.registries.Registries;
 import net.minecraft.network.chat.Component;
 import net.minecraft.world.item.CreativeModeTab;
 import net.minecraft.world.item.CreativeModeTabs;
-import net.minecraftforge.eventbus.api.IEventBus;
-import net.minecraftforge.registries.DeferredRegister;
-import net.minecraftforge.registries.RegistryObject;
+import net.neoforged.bus.api.IEventBus;
+import net.neoforged.neoforge.registries.DeferredHolder;
+import net.neoforged.neoforge.registries.DeferredRegister;
 
+/**
+ * 创造模式标签页注册（NeoForge 1.21.1）：Free Hands 标签，排在战斗标签之前。
+ */
 public final class ModCreativeTabs {
-    private static final DeferredRegister<CreativeModeTab> TABS = DeferredRegister.create(Registries.CREATIVE_MODE_TAB, FreeHands.MODID);
+    public static final DeferredRegister<CreativeModeTab> TABS =
+            DeferredRegister.create(Registries.CREATIVE_MODE_TAB, FreeHands.MODID);
 
-    public static final RegistryObject<CreativeModeTab> FREE_HANDS = TABS.register("free_hands", () -> CreativeModeTab.builder()
-            .withTabsBefore(CreativeModeTabs.COMBAT)
-            .title(Component.translatable("itemGroup.freehands.free_hands"))
-            .icon(() -> ModItems.IRON_TRINKET.get().getDefaultInstance())
-            .displayItems((parameters, output) -> {
-                output.accept(ModItems.IRON_TRINKET.get());
-                output.accept(ModItems.DIAMOND_TRINKET.get());
-                output.accept(ModItems.NETHERITE_TRINKET.get());
-            })
-            .build());
+    public static final DeferredHolder<CreativeModeTab, CreativeModeTab> FREE_HANDS =
+            TABS.register("free_hands", () -> CreativeModeTab.builder()
+                    .withTabsBefore(CreativeModeTabs.COMBAT)
+                    .title(Component.translatable("itemGroup.freehands.free_hands"))
+                    .icon(() -> ModItems.IRON_TRINKET.get().getDefaultInstance())
+                    .displayItems((parameters, output) -> {
+                        output.accept(ModItems.IRON_TRINKET.get());
+                        output.accept(ModItems.DIAMOND_TRINKET.get());
+                        output.accept(ModItems.NETHERITE_TRINKET.get());
+                    })
+                    .build());
 
     private ModCreativeTabs() {
     }

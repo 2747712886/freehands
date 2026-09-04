@@ -1,5 +1,6 @@
 {
   "type": "minecraft:crafting_shaped",
+  "category": "equipment",
   "pattern": [
     "HWC",
     "AIP",
@@ -16,5 +17,5 @@
     "S": { "item": "minecraft:diamond_shovel" },
     "L": { "item": "minecraft:diamond_leggings" }
   },
-  "result": { "item": "freehands:diamond_trinket" }
+  "result": { "id": "freehands:diamond_trinket", "count": 1 }
 }
