@@ -245,6 +245,7 @@ public class AbilityTrinketItem extends Item implements ICurioItem {
         return modifiers;
     }
 
+    // 1.21.1 移除了 canApplyAtEnchantingTable：可附魔性改由 data/minecraft/tags/item/enchantable/*.json 声明
     @Override
     public int getEnchantmentValue() {
         return ability.enchantmentValue();

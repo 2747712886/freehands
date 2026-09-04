@@ -16,6 +16,7 @@ import net.neoforged.neoforge.gametest.GameTestHolder;
 import net.neoforged.neoforge.gametest.PrefixGameTestTemplate;
 
 import static com.yourname.freehands.gametest.GameTestSupport.enchant;
+import static com.yourname.freehands.gametest.GameTestSupport.enchantHolder;
 import static com.yourname.freehands.gametest.GameTestSupport.enchantLevel;
 import static com.yourname.freehands.gametest.GameTestSupport.equipTrinket;
 import static com.yourname.freehands.gametest.GameTestSupport.newServerPlayer;
@@ -140,6 +141,14 @@ public final class TrinketMiningGameTests {
                     "An Iron Trinket must be enchantable");
             helper.assertTrue(trinket.getItem().getEnchantmentValue() > 0,
                     "An Iron Trinket must have a positive enchantability value");
+
+            // 1.21.1 附魔可行性改由 #minecraft:enchantable/* 物品标签数据驱动，isEnchantable()/enchant() 都不走这层判定
+            helper.assertTrue(trinket.supportsEnchantment(enchantHolder(helper.getLevel(), Enchantments.EFFICIENCY)),
+                    "An Iron Trinket must accept Efficiency (#minecraft:enchantable/mining)");
+            helper.assertTrue(trinket.supportsEnchantment(enchantHolder(helper.getLevel(), Enchantments.PROTECTION)),
+                    "An Iron Trinket must accept Protection (#minecraft:enchantable/armor)");
+            helper.assertTrue(trinket.supportsEnchantment(enchantHolder(helper.getLevel(), Enchantments.SHARPNESS)),
+                    "An Iron Trinket must accept Sharpness (#minecraft:enchantable/sharp_weapon + sword)");
 
             enchant(helper.getLevel(), trinket, Enchantments.EFFICIENCY, 1);
             helper.assertTrue(enchantLevel(trinket, Enchantments.EFFICIENCY) == 1,
