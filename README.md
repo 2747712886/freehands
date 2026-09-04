@@ -1,9 +1,12 @@
 # Free Hands · 解放双手
 
-一个 Minecraft Forge `1.20.1` 模组，通过 Curios 增加两个解放槽，在不占用主副手的情况下使用工具、武器、护甲和饰品。
-A Minecraft Forge 1.20.1 mod — two Curios slots for tools, weapons, armor, and trinkets, hands-free.
+一个 Minecraft NeoForge `1.21.1` 模组，通过 Curios 增加两个解放槽，在不占用主副手的情况下使用工具、武器、护甲和饰品。
+A Minecraft NeoForge 1.21.1 mod — two Curios slots for tools, weapons, armor, and trinkets, hands-free.
 
-Forge `47.4.10` · Curios `5.14.1`
+NeoForge `21.1.249` · Curios `9.5.1+1.21.1` · Java 21
+
+Forge `1.20.1` 版本线保留在 `1.20.1` 分支。
+The Forge 1.20.1 line stays on the `1.20.1` branch.
 
 ## 解放槽
 
@@ -18,8 +21,8 @@ Two `free_hand` Curios slots for vanilla tools, weapons, armor, shears, and trin
 | 钻石 Diamond | 4096 | 钻石级 | 钻石剑 | 全套钻石 | 全套钻石 | — | 10 |
 | 下界合金 Netherite | 8192 | 下界合金级 | 下界合金剑 | 全套下界合金 | 全套下界合金 | 全套 | 15 |
 
-饰品可在附魔台使用所有工具和护甲附魔。
-Trinkets accept all tool and armor enchantments at the enchanting table.
+饰品可被附魔台与铁砧附上工具、武器、护甲与耐久类附魔。
+Trinkets accept tool, weapon, armor and durability enchantments at the enchanting table and anvil.
 
 ## 挖掘
 
@@ -65,9 +68,10 @@ Vanilla `Unbreakable` tag only; no custom whitelist.
 
 | | 版本 | 必须 |
 |---|---|---|
-| Minecraft | 1.20.1 | 是 |
-| Forge | 47.4.10 | 是 |
-| Curios | 5.14.1+1.20.1 | 是 |
+| Minecraft | 1.21.1 | 是 |
+| NeoForge | 21.1.249 | 是 |
+| Curios | 9.5.1+1.21.1 | 是 |
+| Java | 21 | 是 |
 
 ## 构建
 
@@ -77,7 +81,7 @@ Vanilla `Unbreakable` tag only; no custom whitelist.
 .\gradlew.bat build --no-daemon --max-workers=1 --console=plain
 ```
 
-产物 `build/libs/freehands-forge-1.20.1-0.1.0.jar`
+产物 `build/libs/freehands-neoforge-1.21.1-0.2.0.jar`（需 Java 21；Gradle 找不到时显式指定 `JAVA_HOME`）。
 
 启动客户端：
 
@@ -85,9 +89,9 @@ Vanilla `Unbreakable` tag only; no custom whitelist.
 .\gradlew.bat runClient
 ```
 
-开发测试模组：`runClient` 自动下载 6 个客户端测试模组到 `run/dev-mods`（JEI、IMBlocker、汉字输入，以及 FTB Ultimine 连锁采集所需的 Architectury / FTB Library / FTB Ultimine）。仅用于本地验证，**不会进入发布产物**；也可手动执行 `.\gradlew.bat downloadDevelopmentClientMods`。
+开发测试模组：连锁兼容所需的 Architectury / FTB Library / FTB Ultimine（**NeoForge 版**）放在 `run/dev-mods`，仅当三 jar 齐备时才加入运行时类路径，**不会进入发布产物**；缺失时 12 个连锁测试自动跳过。执行 `.\gradlew.bat downloadDevelopmentMods` 可按 sha1 校验拉取。客户端专用测试模组（JEI、IMBlocker、汉字输入）尚未移植到 1.21.1。
 
-自动化测试（38 项）：
+自动化测试（48 项）：
 
 ```powershell
 .\gradlew.bat runGameTestServer --no-daemon --max-workers=1 --console=plain
