@@ -89,12 +89,29 @@ if (ftbUltimineNeoForgeJars.every { it.isFile() }) {
     }
 }
 
+// 客户端专用 devmods（JEI/IMBlocker/JEC）只进客户端运行配置：GameTestServer/专用服务端加载它们会因
+// 引用客户端类在 CONSTRUCT 阶段崩溃，故按运行任务名排除；runClient 与 runData 正常加载。
+def runningServerTypeRun = gradle.startParameter.taskNames.any { taskName ->
+    taskName == 'runGameTestServer' || taskName.endsWith(':runGameTestServer')
+            || taskName == 'runServer' || taskName.endsWith(':runServer')
+}
+def clientOnlyNeoForgeDevMods = [
+        file('run/dev-mods/jei-1.21.1-neoforge-19.51.0.418.jar'),
+        file('run/dev-mods/jecharacters-1.21.1-neoforge-4.5.29.jar'),
+        file('run/dev-mods/IMBlocker-5.6.0-neoforge+1.20.6-1.21.8.jar'),
+]
+if (clientOnlyNeoForgeDevMods.every { it.isFile() } && !runningServerTypeRun) {
+    dependencies {
+        runtimeOnly files(clientOnlyNeoForgeDevMods)
+    }
+}
+
 // run/dev-mods 不进版本库：换机器时 12 个连锁测试会静默跳过，用本任务按 sha1 校验重新拉取。
-// 客户端专用 devmods（JEI / IMBlocker / JustEnoughCharacters）尚未移植到 1.21.1，仅手工验证时需要。
+// 客户端专用 devmods（JEI / IMBlocker / JustEnoughCharacters）只进客户端运行配置，供本地手工验收。
 // 注意：architectury 同版本号在 Modrinth 与 maven.architectury.dev 上的包字节不同，此处一律按 maven 发布的 sha1 校验。
 tasks.register('downloadDevelopmentMods') {
     group = 'freehands'
-    description = '下载 FTB Ultimine 连锁兼容测试所需的 NeoForge 1.21.1 开发模组到 run/dev-mods。'
+    description = '下载 FTB Ultimine 连锁兼容测试与客户端辅助（JEI/JEC/IMBlocker）所需的 NeoForge 1.21.1 开发模组到 run/dev-mods。'
     def artifacts = [
             [url   : 'https://maven.ftb.dev/releases/dev/ftb/mods/ftb-ultimine-neoforge/2101.1.15/ftb-ultimine-neoforge-2101.1.15.jar',
              name  : 'ftb-ultimine-neoforge-2101.1.15.jar',
@@ -105,6 +122,15 @@ tasks.register('downloadDevelopmentMods') {
             [url   : 'https://maven.architectury.dev/dev/architectury/architectury-neoforge/13.0.11/architectury-neoforge-13.0.11.jar',
              name  : 'architectury-neoforge-13.0.11.jar',
              sha1  : '46f0d2f3126ed240c0cb0d7616e5ea2f92eefd5f'],
+            [url   : 'https://cdn.modrinth.com/data/u6dRKJwZ/versions/ufHUqt9b/jei-1.21.1-neoforge-19.51.0.418.jar',
+             name  : 'jei-1.21.1-neoforge-19.51.0.418.jar',
+             sha1  : 'd19552586f686eae4ef5e7199f31604d1d3cfca7'],
+            [url   : 'https://cdn.modrinth.com/data/I7k4B65h/versions/XPKoy65e/jecharacters-1.21.1-neoforge-4.5.29.jar',
+             name  : 'jecharacters-1.21.1-neoforge-4.5.29.jar',
+             sha1  : '2325c72eadfb19c9feb3901435ca5a9cebc7a46c'],
+            [url   : 'https://cdn.modrinth.com/data/WMDesFsZ/versions/I1yKY90z/IMBlocker-5.6.0-neoforge%2B1.20.6-1.21.8.jar',
+             name  : 'IMBlocker-5.6.0-neoforge+1.20.6-1.21.8.jar',
+             sha1  : 'f45876fd802815a84ec0da777c8f1f93079969da'],
     ]
     outputs.upToDateWhen { artifacts.every { file("run/dev-mods/${it.name}").isFile() } }
     doLast {

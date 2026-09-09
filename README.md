@@ -89,7 +89,7 @@ Vanilla `Unbreakable` tag only; no custom whitelist.
 .\gradlew.bat runClient
 ```
 
-开发测试模组：连锁兼容所需的 Architectury / FTB Library / FTB Ultimine（**NeoForge 版**）放在 `run/dev-mods`，仅当三 jar 齐备时才加入运行时类路径，**不会进入发布产物**；缺失时 12 个连锁测试自动跳过。执行 `.\gradlew.bat downloadDevelopmentMods` 可按 sha1 校验拉取。客户端专用测试模组（JEI、IMBlocker、汉字输入）尚未移植到 1.21.1。
+开发测试模组：连锁兼容所需的 Architectury / FTB Library / FTB Ultimine（**NeoForge 版**）放在 `run/dev-mods`，仅当三 jar 齐备时才加入运行时类路径，**不会进入发布产物**；缺失时 12 个连锁测试自动跳过。客户端辅助模组（JEI `19.51.0.418`、IMBlocker `5.6.0`、JustEnoughCharacters `4.5.29`，均为 NeoForge 1.21.1 版）**只进客户端运行配置**（GameTestServer/专用服务端按运行任务名排除，避免客户端类崩溃）。执行 `.\gradlew.bat downloadDevelopmentMods` 可按 sha1 校验一次性拉取这六个 jar。
 
 自动化测试（48 项）：
 
