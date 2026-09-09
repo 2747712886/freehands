@@ -147,6 +147,30 @@ final class GameTestSupport {
     // ==================== Ultimine 按键注入 ====================
 
     /**
+     * 防御性确保 FTB Ultimine 的 SendShapePacket 已注册到 Architectury 的 S2C_CODECS。
+     * <p>
+     * GameTestServer 并行构造模组时，FTB-Ultimine 的类初始化偶发竞态会让
+     * {@code ftbultimine:send_shape_packet} 漏注册；连锁破块路径 {@code NetworkManager.sendToPlayer}
+     * 会因此 NPE（codec 为 null）。此处反射补齐（仅测试侧），FTB Ultimine 缺席时优雅跳过。
+     */
+    static void ensureUltimineShapeCodecRegistered() {
+        try {
+            Class<?> aggregator = Class.forName("dev.architectury.impl.NetworkAggregator");
+            Class<?> packetClass = Class.forName("dev.ftb.mods.ftbultimine.net.SendShapePacket");
+            Object type = packetClass.getField("TYPE").get(null);
+            Object codec = packetClass.getField("STREAM_CODEC").get(null);
+            net.minecraft.resources.ResourceLocation id =
+                    (net.minecraft.resources.ResourceLocation) type.getClass().getMethod("id").invoke(type);
+            @SuppressWarnings("unchecked")
+            java.util.Map<net.minecraft.resources.ResourceLocation, Object> codecs =
+                    (java.util.Map<net.minecraft.resources.ResourceLocation, Object>) aggregator.getField("S2C_CODECS").get(null);
+            codecs.putIfAbsent(id, codec);
+        } catch (ReflectiveOperationException ignored) {
+            // FTB Ultimine 未安装：连锁测试随后会跳过。
+        }
+    }
+
+    /**
      * 通过反射按下 Ultimine 连锁键。未安装 FTB Ultimine（NeoForge 版）时返回 false，测试应跳过。
      * <p>
      * NeoForge 版内部 API 已核对：{@code getInstance()}/{@code getOrCreatePlayerData(Player)}/
@@ -163,6 +187,7 @@ final class GameTestSupport {
             if (instance == null) {
                 return false;
             }
+            ensureUltimineShapeCodecRegistered();
 
             aimAtBlock(player, targetPos);
             ultimineClass.getMethod("setKeyPressed", ServerPlayer.class, boolean.class).invoke(instance, player, true);

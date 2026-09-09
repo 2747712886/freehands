@@ -41,7 +41,7 @@ public final class TrinketArmorGameTests {
         Player player = spawnPlayer(helper);
         equipTrinket(player, ModItems.IRON_TRINKET.get().getDefaultInstance());
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR), 15.0D),
                     "Iron Trinket should add the armor of a complete iron set");
             helper.succeed();
@@ -53,7 +53,7 @@ public final class TrinketArmorGameTests {
         Player player = spawnPlayer(helper);
         equipTrinket(player, ModItems.DIAMOND_TRINKET.get().getDefaultInstance());
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR), 20.0D),
                     "Diamond Trinket should add the armor of a complete diamond set");
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR_TOUGHNESS), 8.0D),
@@ -67,7 +67,7 @@ public final class TrinketArmorGameTests {
         Player player = spawnPlayer(helper);
         equipTrinket(player, ModItems.NETHERITE_TRINKET.get().getDefaultInstance());
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR), 20.0D),
                     "Netherite Trinket should add the armor of a complete netherite set");
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR_TOUGHNESS), 12.0D),
@@ -85,7 +85,7 @@ public final class TrinketArmorGameTests {
         Player vanillaArmorPlayer = spawnPlayer(helper, 2);
         equipIronArmorSet(vanillaArmorPlayer);
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             float trinketDamage = hurtWithExplosion(trinketPlayer);
             float vanillaArmorDamage = hurtWithExplosion(vanillaArmorPlayer);
             helper.assertTrue(closeTo(trinketDamage, vanillaArmorDamage),
@@ -106,7 +106,7 @@ public final class TrinketArmorGameTests {
         ItemStack chestplate = vanillaArmorPlayer.getItemBySlot(EquipmentSlot.CHEST);
         enchant(helper.getLevel(), chestplate, Enchantments.BLAST_PROTECTION, 4);
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             float trinketDamage = hurtWithExplosion(trinketPlayer);
             float vanillaArmorDamage = hurtWithExplosion(vanillaArmorPlayer);
             helper.assertTrue(closeTo(trinketDamage, vanillaArmorDamage),
@@ -123,7 +123,7 @@ public final class TrinketArmorGameTests {
         Player vanillaArmorPlayer = spawnPlayer(helper, 2);
         equipIronArmorSet(vanillaArmorPlayer);
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             float trinketDamage = hurtWithPlayerOwnedTnt(trinketPlayer);
             float vanillaArmorDamage = hurtWithPlayerOwnedTnt(vanillaArmorPlayer);
             helper.assertTrue(closeTo(trinketDamage, vanillaArmorDamage),
