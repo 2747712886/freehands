@@ -25,6 +25,8 @@ import net.minecraft.world.item.enchantment.EnchantmentHelper;
 import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.phys.BlockHitResult;
 import net.minecraft.world.phys.Vec3;
+import net.minecraftforge.common.MinecraftForge;
+import net.minecraftforge.event.entity.living.LootingLevelEvent;
 import net.minecraftforge.gametest.GameTestHolder;
 import net.minecraftforge.gametest.PrefixGameTestTemplate;
 import top.theillusivec4.curios.api.CuriosApi;
@@ -47,7 +49,7 @@ public final class IronTrinketGameTests {
         Player player = spawnPlayer(helper);
         equipTrinket(player, ModItems.IRON_TRINKET.get().getDefaultInstance());
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR), 15.0D),
                     "Iron Trinket should add the armor of a complete iron set");
             helper.succeed();
@@ -59,7 +61,7 @@ public final class IronTrinketGameTests {
         Player player = spawnPlayer(helper);
         equipTrinket(player, ModItems.DIAMOND_TRINKET.get().getDefaultInstance());
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR), 20.0D),
                     "Diamond Trinket should add the armor of a complete diamond set");
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR_TOUGHNESS), 8.0D),
@@ -73,7 +75,7 @@ public final class IronTrinketGameTests {
         Player player = spawnPlayer(helper);
         equipTrinket(player, ModItems.NETHERITE_TRINKET.get().getDefaultInstance());
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR), 20.0D),
                     "Netherite Trinket should add the armor of a complete netherite set");
             helper.assertTrue(closeTo(player.getAttributeValue(Attributes.ARMOR_TOUGHNESS), 12.0D),
@@ -91,7 +93,7 @@ public final class IronTrinketGameTests {
         Player vanillaArmorPlayer = spawnPlayer(helper, 2);
         equipIronArmorSet(vanillaArmorPlayer);
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             float trinketDamage = hurtWithExplosion(trinketPlayer);
             float vanillaArmorDamage = hurtWithExplosion(vanillaArmorPlayer);
             helper.assertTrue(closeTo(trinketDamage, vanillaArmorDamage),
@@ -112,7 +114,7 @@ public final class IronTrinketGameTests {
         ItemStack chestplate = vanillaArmorPlayer.getItemBySlot(EquipmentSlot.CHEST);
         EnchantmentHelper.setEnchantments(Map.of(Enchantments.BLAST_PROTECTION, 4), chestplate);
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             float trinketDamage = hurtWithExplosion(trinketPlayer);
             float vanillaArmorDamage = hurtWithExplosion(vanillaArmorPlayer);
             helper.assertTrue(closeTo(trinketDamage, vanillaArmorDamage),
@@ -129,7 +131,7 @@ public final class IronTrinketGameTests {
         Player vanillaArmorPlayer = spawnPlayer(helper, 2);
         equipIronArmorSet(vanillaArmorPlayer);
 
-        helper.runAfterDelay(2, () -> {
+        helper.runAfterDelay(20, () -> {
             float trinketDamage = hurtWithPlayerOwnedTnt(trinketPlayer);
             float vanillaArmorDamage = hurtWithPlayerOwnedTnt(vanillaArmorPlayer);
             helper.assertTrue(closeTo(trinketDamage, vanillaArmorDamage),
@@ -719,6 +721,24 @@ public final class IronTrinketGameTests {
             helper.assertTrue(protLevel == 1,
                     "An Iron Trinket should accept Protection I; actual level: " + protLevel);
 
+            helper.succeed();
+        });
+    }
+
+    @GameTest(template = "empty")
+    public static void freeHandSwordLootingCountsForMobDrops(GameTestHelper helper) {
+        Player player = spawnPlayer(helper);
+
+        helper.runAfterDelay(2, () -> {
+            ItemStack sword = new ItemStack(Items.IRON_SWORD);
+            EnchantmentHelper.setEnchantments(Map.of(Enchantments.MOB_LOOTING, 3), sword);
+            equipTrinket(player, sword);
+
+            net.minecraft.world.damagesource.DamageSource source = player.damageSources().playerAttack(player);
+            LootingLevelEvent event = new LootingLevelEvent(player, source, 0);
+            MinecraftForge.EVENT_BUS.post(event);
+            helper.assertTrue(event.getLootingLevel() == 3,
+                    "A Looting III sword in the free-hand slot must raise the looting level used for mob loot");
             helper.succeed();
         });
     }

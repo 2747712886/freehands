@@ -142,6 +142,7 @@
 - 更新时间：2026-09-09
 - **双分支现状**：本仓库同一仓库两条分支并存——`1.20.1`（Forge，本分支，已发布 0.2.0，**遗留线仅收紧急修复**）；`1.21.1`（NeoForge，**主线**，功能完整、测试确定性 48/48、客户端辅助 devmods 已移植，已推送 `origin/1.21.1`）。正文/交接区各守各的口径；新功能与修复优先走 1.21.1，确需回补本分支时再单独处理。
 - 本次完成：**已发布 0.2.0**。版本号 `gradle.properties` 0.1.0→0.2.0；发布前 47/47 GameTest 全绿、`build` 通过；提交 `a1057f5`，tag `1.20.1-0.2.0` 已推，GitHub Release 已发（产物 `freehands-forge-1.20.1-0.2.0.jar`），发布基线已记录。本版内容：Ultimine 连锁兼容完善 + 连锁兜底通用化 + 自定义工具识别 + 音效/挥臂补全 + 孪生包去重。
+- 本次另完成：**1.20.1 回补对齐 1.21.1**。① 攻击加成改为**护甲减伤前**叠加（`FreeHandEvents.addFreeHandAttackDamage` + `LivingEntityMixin` 注入 `getDamageAfterArmorAbsorb`，等价 1.21.1 的 `LivingIncomingDamageEvent`；Forge 的 `LivingAttackEvent` 只读不能改伤害，故用 Mixin）；② 补抢夺回归测试 `freeHandSwordLootingCountsForMobDrops`（post `LootingLevelEvent` 验证解放槽剑的抢夺等级抬升）；③ 6 个护甲/防御测试 `runAfterDelay` 2→20（并发负载下 Curios 属性应用偶发超 2 tick，与 1.21.1 同因）。
 - 关键决策：连锁兜底"其他模组右键交互走标准 use 流程即自动可用"；雕南瓜等方块侧交互必须走完整 `useItemOn`（仅物品 `useOn` 会漏）；判定生效看方块状态变化而非返回值（`interruptFalse.asMinecraft()` 是 `FAIL`）。
 - 未完成 / 下一步：无阻塞。待用户游戏内抽测 0.2.0（连锁剪刀雕南瓜、模组自定义工具连锁、饰品+锄头两步流程）。
 - 入手点：工作树干净，`1.20.1` 与远端同步于 `9559230`；1.21.1 主线的开发/测试命令见该分支的交接区。

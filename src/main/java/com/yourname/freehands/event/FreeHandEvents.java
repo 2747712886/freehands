@@ -25,7 +25,6 @@ import net.minecraft.world.item.enchantment.Enchantments;
 import net.minecraft.world.level.block.state.BlockState;
 import net.minecraftforge.event.TickEvent;
 import net.minecraftforge.event.entity.living.LivingDamageEvent;
-import net.minecraftforge.event.entity.living.LivingHurtEvent;
 import net.minecraftforge.event.entity.living.LootingLevelEvent;
 import net.minecraftforge.event.entity.player.CriticalHitEvent;
 import net.minecraftforge.event.entity.player.PlayerEvent;
@@ -110,20 +109,25 @@ public final class FreeHandEvents {
         }
     }
 
-    @SubscribeEvent
-    public static void onLivingHurt(LivingHurtEvent event) {
-        if (!(event.getSource().getDirectEntity() instanceof Player player)) {
-            return;
+    /**
+     * 计算解放槽最高武器对本次近战的攻击加成，并在护甲减伤前叠加（由 LivingEntityMixin 注入
+     * {@code getDamageAfterArmorAbsorb} 调用），与 1.21.1 的 {@code LivingIncomingDamageEvent} 一致：
+     * 加成会被目标护甲/韧性正常削减，而非 1.20.1 旧版 LivingHurtEvent 的无视护甲叠加。
+     * 同时扣参与叠伤的武器耐久并触发火焰附加。
+     *
+     * @return 应叠加到原始伤害上的加成值（无解放槽武器时为 0）
+     */
+    public static float addFreeHandAttackDamage(Player player, LivingEntity target) {
+        Optional<FreeHandStack> attackerStack = bestAttackStack(player, target);
+        if (attackerStack.isEmpty()) {
+            return 0.0F;
         }
-
-        Optional<FreeHandStack> attackerStack = bestAttackStack(player, event.getEntity());
-        if (attackerStack.isPresent()) {
-            float criticalMultiplier = CRITICAL_HIT_MULTIPLIERS.getOrDefault(new CombatHit(player.getUUID(), event.getEntity().getUUID()), 1.0F);
-            CRITICAL_HIT_MULTIPLIERS.remove(new CombatHit(player.getUUID(), event.getEntity().getUUID()));
-            event.setAmount((float) (event.getAmount() + attackDamage(attackerStack.get().stack(), event.getEntity()) * criticalMultiplier));
-            damageFreeHandItem(attackerStack.get().stack(), player, 1);
-            applyWeaponSideEffects(attackerStack.get().stack(), event.getEntity());
-        }
+        float criticalMultiplier = CRITICAL_HIT_MULTIPLIERS.getOrDefault(new CombatHit(player.getUUID(), target.getUUID()), 1.0F);
+        CRITICAL_HIT_MULTIPLIERS.remove(new CombatHit(player.getUUID(), target.getUUID()));
+        float added = (float) (attackDamage(attackerStack.get().stack(), target) * criticalMultiplier);
+        damageFreeHandItem(attackerStack.get().stack(), player, 1);
+        applyWeaponSideEffects(attackerStack.get().stack(), target);
+        return added;
     }
 
     @SubscribeEvent
