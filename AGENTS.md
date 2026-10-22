@@ -9,8 +9,10 @@
 
 ## 美术管线
 
-- `minecraft-art-router` 生成 16x16 贴图：源图必须**正好 `816x816`**（16x51），否则重新生成；再以 `normalize_item_texture.py --grid-locked` 输出合规透明 PNG。凭证不入项目文档；材料变体尽量由已批准的 iron master 生成。可复用提示词与验收标准见 `docs/ai-image-prompts.md`。
-- 三个饰品贴图 `freehands:{iron,diamond,netherite}_trinket`：透明 16x16 居中护身符，对称八角轮廓、单像素透明边、≤16 不透明色；铁灰 / 钢蓝带青色核心 / 暗紫灰带酒红核心。耐久 2048/4096/8192。
+- 饰品贴图**直接以成品尺寸逐像素手绘**，不经作图模型、不做降采样：`tools/art/trinkets.mjs`（无依赖 Node 脚本）把每颗像素写进代码，`node tools/art/trinkets.mjs` 直接产出 16x16 PNG，`--dry` 只打印 ASCII 与色数/透明边自检。
+- 配色取自原版贴图采样（`1.20.1.jar` 的 `item/iron_ingot`、`item/diamond`、`item/netherite_ingot`）：铁 `#ffffff/#d8d8d8/#a8a8a8/#828282/#727272/#5e5e5e/#353535`、钻石 `#d5fff6/#4aedd9/#20c5b5/#1aaaa7/#1c919a/#11727a/#145e53`、下界合金 `#737173/#5a575a/#4d494d/#4c4143/#31292a/#271c1d/#111111`（另加酒红核心 `#7c1f38/#b4536a` 与古董金铆钉 `#c9a227`）。
+- 三个饰品贴图 `freehands:{iron,diamond,netherite}_trinket`：透明 16x16 圆盘徽章，外圈亮边（左上打光、右下压暗）+ 中央菱形镶嵌 + 材质宝石核心；单像素透明边、≤16 不透明色。造型在脚本内可切换：`K` 圆盘（默认）、`I` 方章、`L` 吊坠（已否决：顶部挂环看着像挂锁）。与 `1.21.1` 主线共用同一套贴图与脚本。耐久 2048/4096/8192。
+- 旧的 `minecraft-art-router` + `816x816 → normalize_item_texture.py --grid-locked` 路线已弃用（降采样会糊）；`docs/ai-image-prompts.md` 仅作历史提示词留档。
 - 铁/钻九格配方：四同阶护甲 + 四同阶工具/武器 + 同阶材料块；下界合金 = 锻造台 + 升级模板 + 下界合金块升级钻石饰品。
 
 ## 开发测试模组（run/dev-mods）
@@ -45,8 +47,8 @@
 
 ## 个人工具
 
-- `minecraft-art-router` 位于 `C:\Users\a2747\.codex\skills\minecraft-art-router`（本机个人工具）：`imagegen` 生成严格 16x16 网格概念稿 → `normalize_item_texture.py --grid-locked` 输出透明 PNG 与最近邻预览。
-- `freehands:iron_trinket` 自有贴图 `assets/freehands/textures/item/iron_trinket.png`：透明 16x16 居中轨道铁芯，锻造核心 + 四对称轨道节点，模型引用 `freehands:item/iron_trinket`。
+- 贴图生成器 `tools/art/trinkets.mjs`（项目内、无第三方依赖）：像素绘制 + PNG 编码都在一个文件里，默认写 `src/main/resources/assets/freehands/textures/item/`，`--dry` 只打印自检结果。
+- 三档饰品贴图均由该脚本产出，模型统一 `minecraft:item/generated` + `freehands:item/<name>`。
 
 ## 当前实现
 
@@ -139,12 +141,12 @@
 - 解放槽工具的效率/时运/精准采集/耐久附魔、武器的锋利/火焰附加/抢夺/耐久附魔需手动进游戏验证。
 <!-- HANDOFF-START -->
 ## 交接区（自动维护，请勿手改本块）
-- 更新时间：2026-09-09
-- **双分支现状**：本仓库同一仓库两条分支并存——`1.20.1`（Forge，本分支，已发布 0.2.0，**遗留线仅收紧急修复**）；`1.21.1`（NeoForge，**主线**，功能完整、测试确定性 48/48、客户端辅助 devmods 已移植，已推送 `origin/1.21.1`）。正文/交接区各守各的口径；新功能与修复优先走 1.21.1，确需回补本分支时再单独处理。
-- 本次完成：**已发布 0.2.0**。版本号 `gradle.properties` 0.1.0→0.2.0；发布前 47/47 GameTest 全绿、`build` 通过；提交 `a1057f5`，tag `1.20.1-0.2.0` 已推，GitHub Release 已发（产物 `freehands-forge-1.20.1-0.2.0.jar`），发布基线已记录。本版内容：Ultimine 连锁兼容完善 + 连锁兜底通用化 + 自定义工具识别 + 音效/挥臂补全 + 孪生包去重。
-- 本次另完成：**1.20.1 回补对齐 1.21.1**。① 攻击加成改为**护甲减伤前**叠加（`FreeHandEvents.addFreeHandAttackDamage` + `LivingEntityMixin` 注入 `getDamageAfterArmorAbsorb`，等价 1.21.1 的 `LivingIncomingDamageEvent`；Forge 的 `LivingAttackEvent` 只读不能改伤害，故用 Mixin）；② 补抢夺回归测试 `freeHandSwordLootingCountsForMobDrops`（post `LootingLevelEvent` 验证解放槽剑的抢夺等级抬升）；③ 6 个护甲/防御测试 `runAfterDelay` 2→20（并发负载下 Curios 属性应用偶发超 2 tick，与 1.21.1 同因）。
-- 关键决策：连锁兜底"其他模组右键交互走标准 use 流程即自动可用"；雕南瓜等方块侧交互必须走完整 `useItemOn`（仅物品 `useOn` 会漏）；判定生效看方块状态变化而非返回值（`interruptFalse.asMinecraft()` 是 `FAIL`）。
-- 未完成 / 下一步：无阻塞。待用户游戏内抽测 0.2.0（连锁剪刀雕南瓜、模组自定义工具连锁、饰品+锄头两步流程）。
-- 入手点：工作树干净，`1.20.1` 与远端同步于 `9559230`；1.21.1 主线的开发/测试命令见该分支的交接区。
+- 更新时间：2026-10-22 14:55
+- **双分支现状**：`1.20.1`（Forge，本分支，已发布 0.2.0，遗留线仅收紧急修复）；`1.21.1`（NeoForge，**主线**，已推送 `origin/1.21.1`）。新功能与修复优先走 1.21.1，确需回补本分支时再单独处理。
+- 本次完成：**三档饰品贴图重做，与 1.21.1 主线共用同一套素材**。改用「按成品尺寸逐像素手绘」：`tools/art/trinkets.mjs`（无依赖 Node）直接输出 16x16 PNG，不经作图模型、不降采样；配色采样自本版客户端 jar 的 `item/iron_ingot`、`item/diamond`、`item/netherite_ingot`，下界合金另加酒红核心 + 古董金铆钉。三个贴图字节与 1.21.1 完全一致，均满足透明 1px 边、≤16 不透明色（7/7/12 色）。
+- 造型候选（脚本内 `node tools/art/trinkets.mjs [K|I|L]`）：`K` 圆盘徽章（**已选用**）、`I` 方章、`L` 吊坠（**已否决**，顶部挂环像挂锁）。用户对 K/I 评价仍属「平庸」，后续若要再改造型，优先在 `tools/art/trinkets.mjs` 里加新 builder，别回退到 816x816 降采样老路线。
+- 发布基线：tag `1.20.1-0.2.0`（提交 `a1057f5`），产物 `freehands-forge-1.20.1-0.2.0.jar`；本版贴图更新未改版本号，下次发版时一并带上。
+- 未完成 / 下一步：待用户游戏内抽测 0.2.0 的连锁行为；贴图若再改，改完 `build` 即可，无需动测试。
+- 入手点：`node tools/art/trinkets.mjs --dry` 看自检；`JAVA_HOME=C:\Program Files\Java\jdk-17 ./gradlew build`。
 - 维护规则：实质工作收尾时整块覆盖本标记区（agents-md-keeper skill）。
 <!-- HANDOFF-END -->
