@@ -9,8 +9,10 @@
 
 ## 美术管线
 
-- `minecraft-art-router` 生成 16x16 贴图：源图必须**正好 `816x816`**（16x51），否则重新生成；再以 `normalize_item_texture.py --grid-locked` 输出合规透明 PNG。凭证不入项目文档；材料变体尽量由已批准的 iron master 生成。可复用提示词与验收标准见 `docs/ai-image-prompts.md`。
-- 三个饰品贴图 `freehands:{iron,diamond,netherite}_trinket`：透明 16x16 居中护身符，对称八角轮廓、单像素透明边、≤16 不透明色；铁灰 / 钢蓝带青色核心 / 暗紫灰带酒红核心。耐久 2048/4096/8192。
+- 饰品贴图**直接以成品尺寸逐像素手绘**，不经作图模型、不做降采样：`tools/art/trinkets.mjs`（无依赖 Node 脚本）把每颗像素写进代码，`node tools/art/trinkets.mjs` 直接产出 16x16 PNG，`--dry` 打印 ASCII 与色数/透明边自检。
+- 配色取自原版贴图采样（`1.20.1.jar` 的 `item/iron_ingot`、`item/diamond`、`item/netherite_ingot`），保证观感原生：铁 `#ffffff/#d8d8d8/#a8a8a8/#828282/#727272/#5e5e5e/#353535`、钻石 `#d5fff6/#4aedd9/#20c5b5/#1aaaa7/#1c919a/#11727a/#145e53`、下界合金 `#737173/#5a575a/#4d494d/#4c4143/#31292a/#271c1d/#111111`（下界合金另加酒红核心 `#7c1f38/#b4536a` 与古董金铆钉 `#c9a227`）。
+- 三个饰品贴图 `freehands:{iron,diamond,netherite}_trinket`：透明 16x16 圆盘徽章，外圈亮边（左上打光、右下压暗）+ 中央菱形镶嵌 + 材质宝石核心；单像素透明边、≤16 不透明色。造型在脚本里可切换：`K` 圆盘（默认）、`I` 方章、`L` 吊坠（**已否决**：顶部挂环看着像挂锁，不像饰品）。耐久 2048/4096/8192。
+- 旧的 `minecraft-art-router` + `816x816 → normalize_item_texture.py --grid-locked` 路线已弃用（会引入缩放失真）；`docs/ai-image-prompts.md` 仅作历史提示词留档。
 - 铁/钻九格配方：四同阶护甲 + 四同阶工具/武器 + 同阶材料块；下界合金 = 锻造台 + 升级模板 + 下界合金块升级钻石饰品。
 
 ## 开发测试模组（run/dev-mods）
@@ -45,8 +47,9 @@
 
 ## 个人工具
 
-- `minecraft-art-router` 位于 `C:\Users\a2747\.codex\skills\minecraft-art-router`（本机个人工具）：`imagegen` 生成严格 16x16 网格概念稿 → `normalize_item_texture.py --grid-locked` 输出透明 PNG 与最近邻预览。
-- `freehands:iron_trinket` 自有贴图 `assets/freehands/textures/item/iron_trinket.png`：透明 16x16 居中轨道铁芯，锻造核心 + 四对称轨道节点，模型引用 `freehands:item/iron_trinket`。
+- 贴图生成器 `tools/art/trinkets.mjs`（项目内、无第三方依赖）：ASCII/像素级绘制 + PNG 编码都在一个文件里，默认写 `src/main/resources/assets/freehands/textures/item/`，`--dry` 只打印自检结果。
+- `minecraft-art-router`（旧本机工具）已不用于本项目：它要求 816x816 源图再 `--grid-locked` 降采样，会引入缩放失真；仅当要画全新造型的概念稿时才考虑。
+- 三个饰品贴图 `iron/diamond/netherite_trinket.png` 均由上述脚本产出，模型统一 `minecraft:item/generated` + `freehands:item/<name>`。
 
 ## 当前实现
 
@@ -140,16 +143,14 @@
 - 解放槽工具的效率/时运/精准采集/耐久附魔、武器的锋利/火焰附加/抢夺/耐久附魔需手动进游戏验证。
 <!-- HANDOFF-START -->
 ## 交接区（自动维护，请勿手改本块）
-- 更新时间：2026-09-09 08:37
-- 当前分支：`1.21.1`（NeoForge 主线），HEAD `3935d38` 与 `origin/1.21.1` 同步；`1.20.1`（Forge）已发布 0.2.0，作为遗留线仅收紧急修复。两个版本在同一仓库的两个分支并存，工作树同一时刻只检出其一（当前 1.21.1）。1.20.1 源码快照 `.port-ref-1.20.1/`；`.port-ref/`（NeoForge API 参考）与 `.cowork-temp/` 已进 `.gitignore`。
-- 本次完成：**1.21.1 测试套件确定化**。① 修复 `ultimineDamagesFreeHandPickaxeForEveryBrokenBlock` 偶发 NPE：根因是 FTB-Ultimine 在 GameTestServer 并行模组构造时偶发漏注册 `ftbultimine:send_shape_packet` 到 Architectury `S2C_CODECS`（详见正文《Ultimine 兼容测试》），测试侧 `GameTestSupport.ensureUltimineShapeCodecRegistered()` 反射补齐；② 修复护甲属性断言时序 flaky（`TrinketArmorGameTests` 的 `runAfterDelay` 2→20，并发负载下 Curios 属性应用偶发超 2 tick）；③ 修复后**连续 8 轮 `runGameTestServer` 48/48 全绿**、`build` 通过；④ 两个测试文件改动已提交推送。
-- 本次另完成：**客户端辅助 devmods 移植到 1.21.1**——`downloadDevelopmentMods` 新增 JEI `19.51.0.418` / JustEnoughCharacters `4.5.29` / IMBlocker `5.6.0`（均 NeoForge 版，Modrinth 下载 + sha1 校验），**只进客户端运行配置**（`runningServerTypeRun` 排除 runGameTestServer/runServer，避免客户端类 CONSTRUCT 崩溃）。已验证：runGameTestServer 48/48 不含客户端 mods、runClient 六 mod 全加载正常。README 已同步。
-- 🔴 连锁静默失效的根因（下次遇到务必先看）：Architectury `PlayerHooks.isFake` 的定义是 `player instanceof ServerPlayer && player.getClass() != ServerPlayer.class`，而 FTB Ultimine 2101 在 `canUltimine`/`blockRightClick` **入口**就判 isFake。**GameTest 里的连锁玩家必须是 `ServerPlayer` 本体**；旧的 `TestServerPlayer` 子类会让 12 个连锁测试表现为"什么都不发生、方块不变"。挥臂发包改由 `SilentServerGamePacketListener` 吞掉，不再需要子类覆写 `swing`。
-- 2101.1.15 内部结构（对照 1.20.1 的 2001.1.8）：单例改为公开 `getInstance()`（私有字段 `instance` 仍在但不可反射）；右键动作由 `PlatformMethodsImpl` 的 if-else 改为可插拔 `RightClickHandler`，注册顺序写死在 `RightClickDispatcher`＝**斧→锹→锄→作物**，且各处理器统一 `player.getMainHandItem().useOn(...)`（**不再强转 `AxeItemAccess`**）。`cachedPos`/`cachedPositions()`/`isPressed()`/`getOrCreatePlayerData`/`setKeyPressed` 名字未变 → mixin 与反射几乎零改动。饰品仍保留逐位置 `useItemOn` 兜底：为的是本模组自己的 `rightClickPriority`（锹→斧→锄）不被 FTB 固定顺序覆盖，以及雕南瓜等 FTB 无内置处理器的动作。
-- 抢夺恢复做法：NeoForge 1.21.1 删了 `LootingLevelEvent`；战利品经 `EnchantedCountIncreaseFunction` → `EnchantmentHelper.getEnchantmentLevel(Holder, LivingEntity)`（抢夺 slots=mainhand，看不到解放槽）。新 mixin 仅在"查询 LOOTING 且实体是 Player"时把结果抬到 `FreeHandEvents.freeHandEnchantmentLevel(player, LOOTING)`（**只升不降**，其它附魔/实体不受影响）。回归测试 `freeHandSwordLootingCountsForMobDrops`。
-- 其它修正：`AbilityTrinketItem.getSlotsTooltip` 迁到 Curios 9.5.1 带 `Item.TooltipContext` 的新重载（编译零告警）；architectury 同版本号在 Modrinth 与 `maven.architectury.dev` 上**字节不同**（584734 vs 592446），下载任务按 maven 发布的 sha1 校验。
-- 环境（不变，照做）：所有 gradlew 命令前置 `JAVA_HOME="/d/Gradle/jdk-21-temurin"`（本机无 Java 21 系统安装；Temurin 21 来自清华 TUNA 镜像，GRADLE_USER_HOME=`D:/Gradle/.gradle` 已禁 auto-download）。增量 `build` ~8-14s、`runGameTestServer` ~55s。反编译第三方 jar 用缓存里的 vineflower 1.10.1（比啃 javap 快）。
-- 未完成 / 下一步：① dev 客户端手工验收——Curios 两槽 UI、连锁右键手感、挥臂/音效与客户端预测（GameTest 覆盖不到）；② 正文《常用命令》《验证清单》等仍混 1.20.1/Forge 口径，若要切 1.21.1 口径需用户点头；③ 可选：解放槽白名单补第三方工具标签、按需扩展 `#minecraft:enchantable/*` 标签。
-- 入手点：`JAVA_HOME=/d/Gradle/jdk-21-temurin ./gradlew build runGameTestServer`（确定性 48/48）；缺 devmods 时先 `./gradlew downloadDevelopmentMods`；1.20.1 对照 `.port-ref-1.20.1/`。
+- 更新时间：2026-10-22 14:46
+- 当前分支：`1.21.1`（NeoForge 主线），HEAD 与 `origin/1.21.1` 同步；`1.20.1`（Forge）已发布 0.2.0，作为遗留线仅收紧急修复。工作树同一时刻只检出其一。
+- 本次完成：**三档饰品贴图重做**。改为"直接用像素填成品尺寸"：`tools/art/trinkets.mjs`（无依赖 Node）逐像素绘制并直接输出 16x16 PNG，不经作图模型、不做降采样；配色从原版贴图采样（`1.20.1.jar` 的 `item/iron_ingot`、`item/diamond`、`item/netherite_ingot`），下界合金另加酒红核心 + 古董金铆钉。造型三候选内置于脚本：`K` 圆盘徽章（**已选用**，外圈亮边 + 菱形镶嵌 + 宝石核心）、`I` 方章、`L` 吊坠（**已否决**，顶部挂环看着像挂锁）；切换只要 `node tools/art/trinkets.mjs I` 再重载资源。用户评价 K/I 仍偏「平庸」，后续可继续迭代造型（已试过刻面星、珠边齿轮两版概念，未采用）。三个贴图均满足透明 1px 边、≤16 不透明色（实测 7/7/12 色）。验证：`build` 通过、`runGameTestServer` **48/48 全绿**。
+- 硬约束（贴图相关）：`minecraft-art-router` 的 `816x816 → normalize_item_texture.py --grid-locked` 老路线已弃用（降采样会糊），`docs/ai-image-prompts.md` 仅留作历史提示词。
+- devmods 现状（2026-10-22 复核）：IMBlocker 上游已到 `5.6.2.1`、FTB Library 到 `2101.1.37`，但 `build.gradle` 仍钉 `5.6.0` / `2101.1.35`（运行正常，未升级）；JEI `19.51.0.418` 仍是最新 release（更新的 19.57.x 只有 beta）、JEC `4.5.29`、FTB Ultimine `2101.1.15`、Architectury `13.0.11` 均为当前最新。
+- 🔴 连锁静默失效的根因（下次遇到务必先看）：Architectury `PlayerHooks.isFake` 是 `player instanceof ServerPlayer && player.getClass() != ServerPlayer.class`，FTB Ultimine 2101 在入口就判 isFake → **GameTest 里的连锁玩家必须是 `ServerPlayer` 本体**（子类会让 12 个连锁测试全静默）。
+- 环境（不变，照做）：所有 gradlew 命令前置 `JAVA_HOME="D:\\Gradle\\jdk-21-temurin"`；增量 `build` ~8-14s、整包 `build runGameTestServer` ~2m20s（GameTest 本体约 5s）。
+- 未完成 / 下一步：① dev 客户端里逐个看 L/K/I 三种造型手感（`node tools/art/trinkets.mjs K` → 重启 runClient）；② 若要 32x32 高清包或像素动画帧，在同一脚本里加分辨率参数即可；③ 正文《常用命令》《验证清单》仍混 1.20.1/Forge 口径。
+- 入手点：`node tools/art/trinkets.mjs --dry`（不出图，只看 ASCII 与自检）；改完跑 `JAVA_HOME=/d/Gradle/jdk-21-temurin ./gradlew build runGameTestServer`。
 - 维护规则：实质工作收尾时整块覆盖本标记区（agents-md-keeper skill）。
 <!-- HANDOFF-END -->
